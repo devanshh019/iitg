@@ -30,6 +30,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: Optional[str] = None
+    role: Optional[str] = "participant"
+    college: Optional[str] = None
+    phone: Optional[str] = None
+    tshirt_size: Optional[str] = None
     is_super_admin: bool = False
 
 

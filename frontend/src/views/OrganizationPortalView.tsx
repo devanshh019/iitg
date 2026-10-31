@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/Badge';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useEvent } from '../context/EventContext';
+import { ArenaCommandCenter } from './ArenaCommandCenter';
 
 interface OrganizationPortalViewProps {
   onNavigate: (view: string) => void;
@@ -22,6 +23,7 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<any | null>(null);
   const [orgDetail, setOrgDetail] = useState<any | null>(null);
+  const [managedArena, setManagedArena] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -227,6 +229,19 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
     }
   };
 
+  if (managedArena) {
+    return (
+      <ArenaCommandCenter
+        arena={managedArena}
+        organization={selectedOrg}
+        onBack={() => {
+          setManagedArena(null);
+          if (selectedOrg) loadOrgDetail(selectedOrg.id);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto text-black animate-fadeIn">
       {/* Top Banner with Apple Mode Switcher */}
@@ -418,6 +433,23 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
                         <div className="text-[10px] font-bold uppercase text-neutral-400">Prize Pool</div>
                         <div className="font-mono font-bold text-sm text-black mt-0.5">{ev.format_config?.prize_pool || 'Standard'}</div>
                       </div>
+                    </div>
+
+                    {/* Operations Action Bar */}
+                    <div className="pt-3 border-t border-neutral-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <span className="text-[11px] text-neutral-500">
+                        Live Operations: QR Check-in, Squad Controls, Round Progression & Judge Monitor
+                      </span>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setManagedArena(ev)}
+                        className="gap-2 rounded-xl text-xs py-1.5 px-4 bg-black text-white hover:bg-neutral-800 cursor-pointer active:scale-95 transition-transform shrink-0"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        <span>Manage Arena Command Center</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
                 ))}

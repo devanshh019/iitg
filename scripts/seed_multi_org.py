@@ -14,9 +14,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from backend.app.db import SessionLocal
-from backend.app.models.entities import Event, User, ProblemStatement, Organization, utcnow
+from backend.app.models.entities import (
+    Event, User, ProblemStatement, Organization, Team, TeamMembership, Rubric, RubricCriterion,
+    JudgeAssignment, Submission, SubmissionRevision, Participant, utcnow
+)
 from backend.app.services.event_service import EventService
 from backend.app.services.auth_service import AuthService
+from backend.app.crypto import encrypt_field, deterministic_hash, normalize_email
 from backend.app.schemas.schemas import EventCreate
 
 def seed_multi_org():
@@ -27,8 +31,124 @@ def seed_multi_org():
     admin_user = AuthService.register_or_get_user(
         db, email="admin@hackos.io", password="Password123!", is_super_admin=True
     )
+    admin_user.is_super_admin = True
+    admin_wc = AuthService.register_or_get_user(
+        db, email="admin@whycode.io", password="Password123!", is_super_admin=True
+    )
+    admin_wc.is_super_admin = True
+    db.commit()
 
     now = utcnow()
+
+    def seed_event_crew(event, ps_list, prefix="iitg"):
+        # Rubric
+        rubric = Rubric(
+            event_id=event.id,
+            title="Comprehensive Evaluation Rubric",
+            criteria=[
+                RubricCriterion(name="Technical Execution & Architecture", weight=0.4, scale_min=1, scale_max=10),
+                RubricCriterion(name="Innovation & Originality", weight=0.3, scale_min=1, scale_max=10),
+                RubricCriterion(name="Real-World Impact & Usability", weight=0.3, scale_min=1, scale_max=10)
+            ]
+        )
+        db.add(rubric)
+        db.commit()
+
+        # Organizers
+        org_u1 = AuthService.register_or_get_user(db, email="organizer@hackos.io", password="Password123!")
+        org_u2 = AuthService.register_or_get_user(db, email="organizer@whycode.io", password="Password123!")
+        AuthService.assign_role(db, event.id, org_u1.id, "organizer", admin_user.id)
+        AuthService.assign_role(db, event.id, org_u2.id, "organizer", admin_user.id)
+
+        # Judges
+        j1 = AuthService.register_or_get_user(db, email=f"judge1.{prefix}@hackos.io", password="Password123!")
+        j2 = AuthService.register_or_get_user(db, email=f"judge2.{prefix}@hackos.io", password="Password123!")
+        AuthService.assign_role(db, event.id, j1.id, "judge", admin_user.id)
+        AuthService.assign_role(db, event.id, j2.id, "judge", admin_user.id)
+
+        # Participants & Squads
+        sample_hackers = [
+            ("Aarav Sharma", f"aarav.{prefix}@hackos.io", "IIT Guwahati", "9876543210"),
+            ("Priya Nair", f"priya.{prefix}@hackos.io", "IIT Guwahati", "9876543211"),
+            ("Rohan Verma", f"rohan.{prefix}@hackos.io", "BITS Pilani", "9876543212"),
+            ("Ananya Das", f"ananya.{prefix}@hackos.io", "IIT Bombay", "9876543213"),
+            ("Vikram Sen", f"vikram.{prefix}@hackos.io", "IIIT Hyderabad", "9876543214"),
+            ("Sneha Roy", f"sneha.{prefix}@hackos.io", "NIT Trichy", "9876543215"),
+            ("Aditya Roy", f"aditya.{prefix}@hackos.io", "DTU Delhi", "9876543216"),
+            ("Meera Joshi", f"meera.{prefix}@hackos.io", "COEP Pune", "9876543217")
+        ]
+
+        participants_list = []
+        for idx, (name, email, col, phone) in enumerate(sample_hackers):
+            norm_em = normalize_email(email)
+            em_hash = deterministic_hash(norm_em)
+            ph_hash = deterministic_hash(phone)
+            fallback = f"{prefix.upper()[:3]}{idx+11}"
+            status = "boarded" if idx % 2 == 0 else "registered"
+            u = AuthService.register_or_get_user(db, email=email, password="Password123!")
+            AuthService.assign_role(db, event.id, u.id, "participant", admin_user.id)
+            part = Participant(
+                event_id=event.id,
+                user_id=u.id,
+                name=name,
+                email_enc=encrypt_field(norm_em),
+                phone_enc=encrypt_field(phone),
+                college_enc=encrypt_field(col),
+                normalized_email_hash=em_hash,
+                normalized_phone_hash=ph_hash,
+                dedupe_key=em_hash,
+                consent=True,
+                short_fallback_code=fallback,
+                status=status
+            )
+            db.add(part)
+            db.flush()
+            participants_list.append(part)
+
+        db.commit()
+
+        # Create 2 Squads
+        sq1 = Team(
+            event_id=event.id,
+            name=f"Squad {ps_list[0].track[:12]} Pioneers",
+            tagline="Next-gen architecture",
+            join_code=f"{prefix.upper()[:4]}1",
+            leader_id=participants_list[0].id,
+            track=ps_list[0].track,
+            problem_statement_id=ps_list[0].id,
+            is_ps_locked=True,
+            round_status="round_1"
+        )
+        db.add(sq1)
+        db.flush()
+        participants_list[0].squad_id = sq1.id
+        participants_list[1].squad_id = sq1.id
+        db.add(TeamMembership(team_id=sq1.id, participant_id=participants_list[0].id, role="leader"))
+        db.add(TeamMembership(team_id=sq1.id, participant_id=participants_list[1].id, role="member"))
+
+        sq2 = Team(
+            event_id=event.id,
+            name=f"Squad {ps_list[1].track[:12]} Automators",
+            tagline="Autonomous systems & ML",
+            join_code=f"{prefix.upper()[:4]}2",
+            leader_id=participants_list[2].id,
+            track=ps_list[1].track,
+            problem_statement_id=ps_list[1].id,
+            is_ps_locked=True,
+            round_status="shortlisted_r2"
+        )
+        db.add(sq2)
+        db.flush()
+        participants_list[2].squad_id = sq2.id
+        participants_list[3].squad_id = sq2.id
+        db.add(TeamMembership(team_id=sq2.id, participant_id=participants_list[2].id, role="leader"))
+        db.add(TeamMembership(team_id=sq2.id, participant_id=participants_list[3].id, role="member"))
+        db.commit()
+
+        # Judge assignments
+        db.add(JudgeAssignment(event_id=event.id, judge_id=j1.id, team_id=sq1.id))
+        db.add(JudgeAssignment(event_id=event.id, judge_id=j2.id, team_id=sq2.id))
+        db.commit()
 
     # Seed Organizations
     def get_or_create_org(name, slug, category, website, desc):
@@ -178,6 +298,8 @@ def seed_multi_org():
     )
     db.add_all([ps1_1, ps1_2, ps1_3])
     db.commit()
+    seed_event_crew(ev1, [ps1_1, ps1_2, ps1_3], prefix="iitg")
+    print(f"✅ IIT Guwahati HackSprint seeded with live Problem Statements & crew (Event ID: {ev1.id})")
 
     # 2. Apollo 24: Deep Space Orbital Hackathon (Starts in ~3 Hours)
     slug2 = "apollo-24"
@@ -282,6 +404,8 @@ def seed_multi_org():
     )
     db.add_all([ps2_1, ps2_2, ps2_3])
     db.commit()
+    seed_event_crew(ev2, [ps2_1, ps2_2, ps2_3], prefix="apollo")
+    print(f"✅ Apollo 24 seeded with Problem Statements & crew (Event ID: {ev2.id})")
 
     # 3. Global Web3 & Distributed Cloud Summit (Starts Tomorrow)
     slug3 = "eth-cloud-2026"

@@ -76,26 +76,33 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         db, email=payload.email, password=payload.password, is_super_admin=payload.is_super_admin
     )
 
-    # Auto-enroll non-admin users into the active hackathon mission as participant
+    # Auto-enroll non-admin users into the active hackathon mission
     if not payload.is_super_admin:
         event = db.execute(select(Event).order_by(Event.created_at.desc())).scalars().first()
         if event:
-            AuthService.assign_role(db, event.id, user.id, "participant", actor_id=user.id)
+            role_to_assign = getattr(payload, "role", None) or "participant"
+            AuthService.assign_role(db, event.id, user.id, role_to_assign, actor_id=user.id)
             existing_part = db.execute(select(Participant).filter_by(user_id=user.id, event_id=event.id)).scalars().first()
             if not existing_part:
                 norm_email = normalize_email(payload.email)
                 em_hash = deterministic_hash(norm_email)
                 part_name = payload.name.strip() if getattr(payload, "name", None) and payload.name.strip() else norm_email.split("@")[0].capitalize()
                 fallback_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                custom_meta = {}
+                if getattr(payload, "tshirt_size", None):
+                    custom_meta["tshirt_size"] = payload.tshirt_size
                 new_part = Participant(
                     event_id=event.id,
                     user_id=user.id,
                     name=part_name,
                     email_enc=encrypt_field(norm_email),
+                    phone_enc=encrypt_field(payload.phone) if getattr(payload, "phone", None) else None,
+                    college_enc=encrypt_field(payload.college) if getattr(payload, "college", None) else None,
                     normalized_email_hash=em_hash,
                     dedupe_key=em_hash,
                     consent=True,
                     short_fallback_code=fallback_code,
+                    custom_fields=custom_meta,
                     status="registered"
                 )
                 db.add(new_part)

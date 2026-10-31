@@ -39,7 +39,15 @@ interface AuthContextType {
   isLoading: boolean;
   activeRole: string;
   login: (email: string, password?: string) => Promise<void>;
-  register: (email: string, password?: string, name?: string) => Promise<void>;
+  register: (
+    email: string,
+    password?: string,
+    name?: string,
+    role?: string,
+    college?: string,
+    phone?: string,
+    tshirtSize?: string
+  ) => Promise<void>;
   logout: () => void;
   canAccessView: (viewId: string) => boolean;
   getAllowedViews: () => string[];
@@ -128,7 +136,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (email: string, password = 'Password123!', name?: string) => {
+  const register = async (
+    email: string,
+    password = 'Password123!',
+    name?: string,
+    role = 'participant',
+    college?: string,
+    phone?: string,
+    tshirtSize?: string
+  ) => {
     setIsLoading(true);
     try {
       await apiFetch<any>('/auth/register', {
@@ -137,6 +153,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: email.trim().toLowerCase(),
           password,
           name: name ? name.trim() : undefined,
+          role,
+          college: college ? college.trim() : undefined,
+          phone: phone ? phone.trim() : undefined,
+          tshirt_size: tshirtSize || undefined,
           is_super_admin: false
         })
       });

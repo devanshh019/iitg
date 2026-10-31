@@ -48,6 +48,7 @@ def broadcast_announcement(
         is_pinned=payload.is_pinned
     )
     db.add(announcement)
+    db.flush()
     AuditService.record_mutation(
         db=db,
         actor_id=current_user.id,

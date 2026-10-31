@@ -60,3 +60,64 @@ def get_throughput(
 ):
     """Live organizer metrics per boarding station."""
     return BoardingService.get_station_throughput(db, event_id)
+
+
+@router.post("/scan")
+def scan_and_mark_attendance(
+    event_id: str,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Direct live scan or manual 6-character code attendance marking."""
+    from backend.app.models.entities import Checkin, utcnow
+    from backend.app.services.audit_service import AuditService
+
+    event = db.execute(select(Event).filter_by(id=event_id)).scalars().first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found.")
+
+    token_or_code = payload.get("token_or_code", "").strip()
+    if not token_or_code:
+        raise HTTPException(status_code=400, detail="Token or code required.")
+
+    station = payload.get("station", "Main Gate")
+
+    part, method = BoardingService.resolve_token_or_code(db, event, token_or_code)
+    if not part:
+        raise HTTPException(status_code=404, detail=f"No participant found matching '{token_or_code}'.")
+
+    already_checked_in = (part.status == "boarded")
+    if not already_checked_in:
+        part.status = "boarded"
+        part.updated_at = utcnow()
+        checkin = Checkin(
+            event_id=event.id,
+            participant_id=part.id,
+            verified_offline=(method == "fallback_code"),
+            station=station,
+            actor_id=current_user.id
+        )
+        db.add(checkin)
+        AuditService.record_mutation(
+            db=db,
+            actor_id=current_user.id,
+            action="attendance_marked",
+            entity_type="participant",
+            entity_id=part.id,
+            payload={"station": station, "method": method, "name": part.name},
+            event_id=event.id
+        )
+        db.commit()
+
+    return {
+        "success": True,
+        "already_checked_in": already_checked_in,
+        "participant_id": part.id,
+        "name": part.name,
+        "status": part.status,
+        "squad_name": part.team.name if part.team else "No Squad",
+        "fallback_code": part.short_fallback_code,
+        "station": station,
+        "method": method
+    }

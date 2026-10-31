@@ -161,6 +161,15 @@ def list_teams(event_id: str, db: Session = Depends(get_db)):
             "track": t.track,
             "is_locked": t.is_locked,
             "lock_reason": t.lock_reason,
+            "is_blacklisted": t.is_blacklisted or False,
+            "blacklist_reason": t.blacklist_reason,
+            "penalty_points": t.penalty_points or 0,
+            "penalty_reason": t.penalty_reason,
+            "round_status": t.round_status or "round_1",
+            "round_feedback": t.round_feedback,
+            "is_ps_locked": t.is_ps_locked or False,
+            "problem_statement_id": t.problem_statement_id,
+            "problem_statement_title": t.problem_statement.title if t.problem_statement else None,
             "member_count": len(t.memberships),
             "members": [{"id": m.participant.id, "name": m.participant.name, "role": m.role} for m in t.memberships],
             "created_at": t.created_at
@@ -257,3 +266,117 @@ def get_team_history(event_id: str, team_id: str, db: Session = Depends(get_db))
         {"action": h.action, "actor_id": h.actor_id, "details": h.details, "timestamp": h.timestamp}
         for h in history
     ]
+
+
+@router.post("/{team_id}/penalty")
+def apply_team_penalty(
+    event_id: str,
+    team_id: str,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Apply penalty points or deduction with reason to a squad."""
+    team = db.execute(select(Team).filter_by(id=team_id, event_id=event_id)).scalars().first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Squad not found.")
+
+    points = int(payload.get("points", 0))
+    reason = payload.get("reason", "Violation of hackathon guidelines")
+
+    team.penalty_points = (team.penalty_points or 0) + points
+    team.penalty_reason = reason
+
+    AuditService.record_mutation(
+        db=db,
+        actor_id=current_user.id,
+        action="team_penalty_applied",
+        entity_type="team",
+        entity_id=team.id,
+        payload={"added_points": points, "total_penalty": team.penalty_points, "reason": reason},
+        event_id=event_id
+    )
+    db.commit()
+
+    return {
+        "message": f"Applied {points} penalty points to {team.name}.",
+        "penalty_points": team.penalty_points,
+        "penalty_reason": team.penalty_reason
+    }
+
+
+@router.post("/{team_id}/blacklist")
+def toggle_team_blacklist(
+    event_id: str,
+    team_id: str,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Blacklist or reinstate a squad with mandatory audit reason."""
+    team = db.execute(select(Team).filter_by(id=team_id, event_id=event_id)).scalars().first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Squad not found.")
+
+    is_blacklisted = bool(payload.get("is_blacklisted", True))
+    reason = payload.get("reason", "Disqualified due to policy violation")
+
+    team.is_blacklisted = is_blacklisted
+    team.blacklist_reason = reason if is_blacklisted else None
+    if is_blacklisted:
+        team.is_locked = True
+        team.lock_reason = f"Blacklisted: {reason}"
+
+    AuditService.record_mutation(
+        db=db,
+        actor_id=current_user.id,
+        action="team_blacklisted" if is_blacklisted else "team_reinstated",
+        entity_type="team",
+        entity_id=team.id,
+        payload={"is_blacklisted": is_blacklisted, "reason": reason},
+        event_id=event_id
+    )
+    db.commit()
+
+    return {
+        "message": f"Squad {team.name} {'blacklisted' if is_blacklisted else 'reinstated'}.",
+        "is_blacklisted": team.is_blacklisted,
+        "blacklist_reason": team.blacklist_reason
+    }
+
+
+@router.post("/{team_id}/round")
+def update_round_status(
+    event_id: str,
+    team_id: str,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Advance or reject a squad across evaluation rounds."""
+    team = db.execute(select(Team).filter_by(id=team_id, event_id=event_id)).scalars().first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Squad not found.")
+
+    round_status = payload.get("round_status", "round_1")
+    feedback = payload.get("feedback", "")
+
+    team.round_status = round_status
+    team.round_feedback = feedback
+
+    AuditService.record_mutation(
+        db=db,
+        actor_id=current_user.id,
+        action="team_round_updated",
+        entity_type="team",
+        entity_id=team.id,
+        payload={"round_status": round_status, "feedback": feedback},
+        event_id=event_id
+    )
+    db.commit()
+
+    return {
+        "message": f"Squad {team.name} status updated to {round_status}.",
+        "round_status": team.round_status,
+        "round_feedback": team.round_feedback
+    }

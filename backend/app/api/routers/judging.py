@@ -7,6 +7,7 @@ from backend.app.db import get_db
 from backend.app.models.entities import Rubric, RubricCriterion, JudgeAssignment, User, Team
 from backend.app.schemas.schemas import FlightReviewSubmit, LeaderboardEntry
 from backend.app.services.judging_service import JudgingService
+from backend.app.services.auth_service import AuthService
 from backend.app.api.deps import get_current_user, require_event_role
 
 router = APIRouter(prefix="/events/{event_id}/judging", tags=["Flight Review / Judging"])
@@ -49,23 +50,56 @@ def get_judge_assignments(
     current_user: User = Depends(require_event_role(["judge", "organizer", "super_admin"])),
     db: Session = Depends(get_db)
 ):
+    from backend.app.crypto import decrypt_field
+    roles = AuthService.get_user_roles(db, current_user.id)
+    is_admin_or_org = current_user.is_super_admin or any(
+        r.get("event_id") == event_id and r.get("role") in ["organizer", "super_admin"] for r in roles
+    )
     query = select(JudgeAssignment).filter_by(event_id=event_id)
-    if not current_user.is_super_admin:
+    if not is_admin_or_org:
         query = query.filter_by(judge_id=current_user.id)
     assignments = db.execute(query).scalars().all()
 
     results = []
     for a in assignments:
         team = db.execute(select(Team).filter_by(id=a.team_id)).scalars().first()
+        judge_user = db.execute(select(User).filter_by(id=a.judge_id)).scalars().first()
+        judge_email = decrypt_field(judge_user.email_enc) if judge_user else "Unknown Judge"
         results.append({
             "assignment_id": a.id,
+            "judge_id": a.judge_id,
+            "judge_email": judge_email,
             "team_id": a.team_id,
             "team_name": team.name if team else "Unknown",
+            "track": team.track if team else "General",
             "is_conflict": a.is_conflict,
             "conflict_reason": a.conflict_reason,
-            "scores_submitted": len(a.scores) > 0
+            "scores_submitted": len(a.scores) > 0,
+            "assigned_at": a.created_at
         })
     return results
+
+
+@router.post("/declare-conflict")
+def declare_judge_conflict(
+    event_id: str,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Flag a conflict of interest on an assignment."""
+    assignment_id = payload.get("assignment_id")
+    reason = payload.get("reason", "Affiliation with squad members")
+
+    assignment = db.execute(select(JudgeAssignment).filter_by(id=assignment_id, event_id=event_id)).scalars().first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found.")
+
+    assignment.is_conflict = True
+    assignment.conflict_reason = reason
+    db.commit()
+
+    return {"message": "Conflict of interest declared.", "assignment_id": assignment.id, "reason": reason}
 
 
 @router.post("/assignments/{assignment_id}/scores")

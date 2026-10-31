@@ -170,6 +170,14 @@ class Team(Base):
     is_ps_locked = Column(Boolean, default=False)
     ps_locked_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Penalties, Blacklist & Round Progression
+    is_blacklisted = Column(Boolean, default=False)
+    blacklist_reason = Column(String(255), nullable=True)
+    penalty_points = Column(Integer, default=0)
+    penalty_reason = Column(String(255), nullable=True)
+    round_status = Column(String(50), default="round_1")  # round_1, shortlisted_r2, finalist, rejected
+    round_feedback = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 

@@ -30,7 +30,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     .map(id => ALL_NAV_ITEMS[id])
     .filter(Boolean);
 
-  const getRoleDisplayName = (_role: string) => 'Hacker';
+  const getRoleDisplayName = (role: string) => {
+    if (role === 'organizer') return 'Organizer';
+    if (role === 'judge') return 'Judge';
+    if (role === 'super_admin') return 'Super Admin';
+    if (role === 'volunteer') return 'Volunteer';
+    return 'Hacker';
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full apple-glass-nav">
