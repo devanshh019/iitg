@@ -18,7 +18,7 @@ interface OrganizationPortalViewProps {
 
 export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { refreshEvents } = useEvent();
+  const { refreshEvents, selectEvent } = useEvent();
 
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<any | null>(null);
@@ -268,10 +268,10 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onNavigate('hackathons')}
+              onClick={() => onNavigate('org-command')}
               className="rounded-xl text-xs py-2 cursor-pointer"
             >
-              <span>Explore All Arenas</span>
+              <span>Live Command Center</span>
             </Button>
 
             <Button
@@ -443,7 +443,10 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => setManagedArena(ev)}
+                        onClick={() => {
+                          selectEvent(ev);
+                          setManagedArena(ev);
+                        }}
                         className="gap-2 rounded-xl text-xs py-1.5 px-4 bg-black text-white hover:bg-neutral-800 cursor-pointer active:scale-95 transition-transform shrink-0"
                       >
                         <Settings className="w-3.5 h-3.5" />

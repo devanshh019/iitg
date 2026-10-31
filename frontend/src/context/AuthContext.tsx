@@ -14,22 +14,38 @@ export interface UserProfile {
   roles: UserRole[];
 }
 
-const USER_NAVIGATION = ['hackathons', 'crew-portal', 'squads', 'problems', 'launch', 'announcements', 'passport', 'org-portal'];
+export const HACKER_NAVIGATION = [
+  'hackathons',
+  'crew-portal',
+  'squads',
+  'problems',
+  'launch',
+  'announcements',
+  'passport'
+];
+
+export const ORGANIZER_NAVIGATION = [
+  'org-overview',
+  'org-command',
+  'org-problems',
+  'org-announcements',
+  'org-audit'
+];
 
 export const ROLE_NAVIGATION: Record<string, string[]> = {
-  participant: USER_NAVIGATION,
-  judge: USER_NAVIGATION,
-  volunteer: USER_NAVIGATION,
-  organizer: USER_NAVIGATION,
-  super_admin: USER_NAVIGATION
+  participant: HACKER_NAVIGATION,
+  judge: ['org-command', 'announcements'],
+  volunteer: ['org-command', 'announcements'],
+  organizer: ORGANIZER_NAVIGATION,
+  super_admin: ORGANIZER_NAVIGATION
 };
 
 export const ROLE_DEFAULT_VIEWS: Record<string, string> = {
   participant: 'hackathons',
-  judge: 'hackathons',
-  volunteer: 'hackathons',
-  organizer: 'hackathons',
-  super_admin: 'hackathons'
+  judge: 'org-command',
+  volunteer: 'org-command',
+  organizer: 'org-overview',
+  super_admin: 'org-overview'
 };
 
 interface AuthContextType {

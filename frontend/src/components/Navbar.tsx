@@ -38,22 +38,31 @@ export const Navbar: React.FC<NavbarProps> = ({
     return 'Hacker';
   };
 
+  const isOrganizerRole = userRole === 'organizer' || userRole === 'super_admin';
+
   return (
     <header className="sticky top-0 z-40 w-full apple-glass-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-6">
           <div
-            onClick={() => onNavigate(allowedViews[0] || 'hackathons')}
+            onClick={() => onNavigate(allowedViews[0] || (isOrganizerRole ? 'org-overview' : 'hackathons'))}
             className="flex items-center gap-2.5 cursor-pointer group select-none"
           >
             <div className="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center font-bold text-sm tracking-wider shadow-sm">
               H
             </div>
             <div>
-              <span className="font-sans font-bold tracking-tight text-base text-black block leading-none">
-                Hack<span className="text-neutral-500">OS</span>
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-sans font-bold tracking-tight text-base text-black block leading-none">
+                  Hack<span className="text-neutral-500">OS</span>
+                </span>
+                {isOrganizerRole && (
+                  <span className="text-[9px] font-bold bg-black text-white px-1.5 py-0.5 rounded leading-none uppercase tracking-wider">
+                    {userRole === 'super_admin' ? 'Root' : 'Host'}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-sans font-semibold text-neutral-400 block tracking-wider uppercase mt-0.5">
                 {getRoleDisplayName(userRole)}
               </span>
@@ -96,9 +105,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Notifications Button */}
           <button
-            onClick={() => onNavigate('announcements')}
+            onClick={() => onNavigate(isOrganizerRole ? 'org-announcements' : 'announcements')}
             className={`p-2 rounded-xl transition-colors cursor-pointer border ${
-              currentView === 'announcements'
+              (currentView === 'announcements' || currentView === 'org-announcements')
                 ? 'bg-black text-white border-black shadow-sm'
                 : 'text-neutral-600 hover:text-black hover:bg-neutral-100 border-neutral-200'
             }`}

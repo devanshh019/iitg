@@ -1,4 +1,8 @@
-import { Home, Users, Shield, QrCode, Rocket, Award, Terminal, Sparkles, Bell, FileCode2, Compass, Building2 } from 'lucide-react';
+import {
+  Home, Users, Shield, QrCode, Rocket, Award, Terminal,
+  Sparkles, Bell, FileCode2, Compass, Building2, Sliders,
+  History, Layers, CheckCircle2
+} from 'lucide-react';
 import React from 'react';
 
 export interface NavItem {
@@ -9,20 +13,14 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export const ALL_NAV_ITEMS: Record<string, NavItem> = {
+// PARTICIPANT (HACKER) NAVIGATION ITEMS ONLY
+export const HACKER_NAV_ITEMS: Record<string, NavItem> = {
   'hackathons': {
     id: 'hackathons',
     label: 'Arenas',
-    mobileLabel: 'Explore',
+    mobileLabel: 'Arenas',
     description: 'Explore and participate in apex hackathon arenas',
     icon: Compass
-  },
-  'org-portal': {
-    id: 'org-portal',
-    label: 'Host & Org',
-    mobileLabel: 'Host',
-    description: 'Host, register organization and manage arenas',
-    icon: Building2
   },
   'crew-portal': {
     id: 'crew-portal',
@@ -66,4 +64,51 @@ export const ALL_NAV_ITEMS: Record<string, NavItem> = {
     description: 'Meal tokens, accommodations and mentor help',
     icon: Sparkles
   }
+};
+
+// ORGANIZER NAVIGATION ITEMS ONLY (NO PARTICIPANT ACTIONS)
+export const ORGANIZER_NAV_ITEMS: Record<string, NavItem> = {
+  'org-overview': {
+    id: 'org-overview',
+    label: 'Hosted Arenas',
+    mobileLabel: 'Arenas',
+    description: 'Overview of all hosted hackathons, organizations, and stats',
+    icon: Building2
+  },
+  'org-command': {
+    id: 'org-command',
+    label: 'Command Center',
+    mobileLabel: 'Command',
+    description: 'Gate QR scanner, dossiers, squad penalties & judge desk',
+    icon: Sliders
+  },
+  'org-problems': {
+    id: 'org-problems',
+    label: 'Problem Statements',
+    mobileLabel: 'Tracks',
+    description: 'Curate, unseal and schedule problem statements & rubrics',
+    icon: FileCode2
+  },
+  'org-announcements': {
+    id: 'org-announcements',
+    label: 'Broadcast Alerts',
+    mobileLabel: 'Broadcast',
+    description: 'Publish high-priority alerts and live updates to hackers',
+    icon: Bell
+  },
+  'org-audit': {
+    id: 'org-audit',
+    label: 'Audit Vault',
+    mobileLabel: 'Audit',
+    description: 'Cryptographic SHA-256 ledger integrity and action feed',
+    icon: History
+  }
+};
+
+// Combined dictionary for lookup
+export const ALL_NAV_ITEMS: Record<string, NavItem> = {
+  ...HACKER_NAV_ITEMS,
+  ...ORGANIZER_NAV_ITEMS,
+  // Legacy alias
+  'org-portal': ORGANIZER_NAV_ITEMS['org-overview']
 };

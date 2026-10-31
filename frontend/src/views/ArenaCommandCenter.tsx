@@ -8,15 +8,19 @@ import {
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { apiFetch } from '../api/client';
+import { useEvent } from '../context/EventContext';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface ArenaCommandCenterProps {
-  arena: any;
-  organization: any;
-  onBack: () => void;
+  arena?: any;
+  organization?: any;
+  onBack?: () => void;
 }
 
-export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena, organization, onBack }) => {
+export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: propArena, organization: propOrg, onBack }) => {
+  const { currentEvent, events, selectEvent } = useEvent();
+  const arena = propArena || currentEvent || events[0] || { id: '', title: 'Select Hackathon Arena', slug: '' };
+  const organization = propOrg || { name: 'HackOS Federation' };
   const [activeTab, setActiveTab] = useState<'scan' | 'participants' | 'squads' | 'judges' | 'broadcast' | 'submissions'>('scan');
   const [loading, setLoading] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -247,13 +251,15 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena, o
       <div className="bg-white p-6 sm:p-7 rounded-3xl border border-black/[0.08] shadow-apple-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="w-9 h-9 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 flex items-center justify-center cursor-pointer transition-colors active:scale-95 shrink-0"
-              title="Return to Organizations"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-9 h-9 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 flex items-center justify-center cursor-pointer transition-colors active:scale-95 shrink-0"
+                title="Return to Organizations"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2.5 py-0.5 rounded-full">
@@ -262,6 +268,22 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena, o
                 <span className="text-xs text-neutral-400 font-semibold truncate max-w-[200px]">
                   {organization.name}
                 </span>
+                {events && events.length > 1 && (
+                  <select
+                    value={arena.id}
+                    onChange={(e) => {
+                      const ev = events.find(item => item.id === e.target.value);
+                      if (ev) selectEvent(ev);
+                    }}
+                    className="ml-2 text-xs bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 rounded-lg px-2 py-0.5 font-semibold text-black focus:outline-none cursor-pointer"
+                  >
+                    {events.map(ev => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-black tracking-tight">
                 {arena.title}

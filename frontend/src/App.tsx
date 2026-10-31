@@ -13,6 +13,9 @@ import { LaunchDeskView } from './views/LaunchDeskView';
 import { AnnouncementsView } from './views/AnnouncementsView';
 import { PassportView } from './views/PassportView';
 import { OrganizationPortalView } from './views/OrganizationPortalView';
+import { ArenaCommandCenter } from './views/ArenaCommandCenter';
+import { OrganizerProblemsView } from './views/OrganizerProblemsView';
+import { OrganizerAuditView } from './views/OrganizerAuditView';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
@@ -78,7 +81,9 @@ const AppContent: React.FC = () => {
             </div>
             <h2 className="text-lg font-bold text-black tracking-tight">Access Restricted</h2>
             <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-              This feature is only available to authorized event roles.
+              {activeRole === 'organizer' || activeRole === 'super_admin'
+                ? 'Participant competitor views are restricted. You are currently in the Organizer Command Console.'
+                : 'This feature is only available to authorized event organizers.'}
             </p>
             <Button
               variant="primary"
@@ -87,11 +92,12 @@ const AppContent: React.FC = () => {
               className="mt-5 gap-2 mx-auto rounded-xl bg-black text-white hover:bg-neutral-800"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Home</span>
+              <span>{activeRole === 'organizer' || activeRole === 'super_admin' ? 'Return to Organizer Console' : 'Back to Arenas'}</span>
             </Button>
           </div>
         ) : (
           <>
+            {/* Hacker Views (Only accessible to participants) */}
             {currentView === 'hackathons' && <HackathonsDirectoryView onNavigate={handleNavigate} />}
             {currentView === 'crew-portal' && <CrewPortalView onNavigate={handleNavigate} />}
             {currentView === 'squads' && <SquadsView />}
@@ -99,7 +105,17 @@ const AppContent: React.FC = () => {
             {currentView === 'launch' && <LaunchDeskView onNavigate={handleNavigate} />}
             {currentView === 'announcements' && <AnnouncementsView />}
             {currentView === 'passport' && <PassportView />}
-            {currentView === 'org-portal' && <OrganizationPortalView onNavigate={handleNavigate} />}
+
+            {/* Organizer Views (Strictly dedicated organizer suite) */}
+            {(currentView === 'org-overview' || currentView === 'org-portal') && (
+              <OrganizationPortalView onNavigate={handleNavigate} />
+            )}
+            {currentView === 'org-command' && (
+              <ArenaCommandCenter onBack={() => handleNavigate('org-overview')} />
+            )}
+            {currentView === 'org-problems' && <OrganizerProblemsView />}
+            {currentView === 'org-announcements' && <AnnouncementsView />}
+            {currentView === 'org-audit' && <OrganizerAuditView />}
           </>
         )}
       </main>
