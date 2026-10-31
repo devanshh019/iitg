@@ -120,14 +120,3 @@ With the backend running, execute:
 source .venv/bin/activate
 PYTHONPATH=. pytest -v --cov=backend/app --cov-report=term
 ```
-
----
-
-## Demo Credentials (Password: `Password123!`)
-- **Super Admin:** `commander@hackos.io`
-- **Organizer:** `flight-director@hackos.io`
-- **Volunteer:** `gate-crew@hackos.io`
-- **Judge 1:** `judge1@hackos.io`
-- **Judge 2:** `judge2@hackos.io`
-- **Conflicted Judge:** `judge3@hackos.io`
-- **Mentors:** `mentor1@hackos.io`, `mentor2@hackos.io`
