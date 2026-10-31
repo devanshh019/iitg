@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Rocket, CheckCircle2, AlertTriangle, ShieldCheck, Code, Globe, Video, Presentation, FileText, Lock } from 'lucide-react';
+import { Rocket, CheckCircle2, AlertTriangle, ShieldCheck, Code, Globe, Video, Presentation, FileText, Lock, ArrowRight, Sparkles } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { apiFetch } from '../api/client';
+import { useEvent } from '../context/EventContext';
 
 interface LaunchDeskViewProps {
+  onNavigate?: (view: string) => void;
   eventId?: string;
 }
 
-export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apollo-24' }) => {
+export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, eventId: propEventId }) => {
+  const { currentEvent } = useEvent();
+  const activeEventId = propEventId || currentEvent?.id;
+
   const [missionId, setMissionId] = useState('');
   const [submission, setSubmission] = useState<any>(null);
-  
-  // Form fields as requested by user
-  const [psTitle, setPsTitle] = useState(() => localStorage.getItem('whycode4u_ps_title') || 'Autonomous Edge Diagnostics');
+  const [mySquad, setMySquad] = useState<any>(null);
+  const [isSquadLoading, setIsSquadLoading] = useState(true);
+
+  // Form fields
+  const [psTitle, setPsTitle] = useState(() => localStorage.getItem('whycode4u_ps_title') || '');
   const [psDescription, setPsDescription] = useState(() => localStorage.getItem('whycode4u_ps_desc') || '');
   const [repoUrl, setRepoUrl] = useState('');
   const [demoUrl, setDemoUrl] = useState('');
@@ -32,32 +39,45 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    loadSubmission();
-  }, [eventId]);
+    if (activeEventId) {
+      loadSubmissionAndSquad();
+    }
+  }, [activeEventId]);
 
-  const loadSubmission = async () => {
+  const loadSubmissionAndSquad = async () => {
     try {
+      setIsSquadLoading(true);
       setLoading(true);
-      const ev = await apiFetch(`/events/by-slug/${eventId}`);
-      setMissionId(ev.id);
+
+      const targetId = activeEventId;
+      setMissionId(targetId || '');
 
       // Check deadline
-      if (ev.submission_deadline) {
-        const deadlineDate = new Date(ev.submission_deadline);
+      if (currentEvent?.submission_deadline) {
+        const deadlineDate = new Date(currentEvent.submission_deadline);
         const now = new Date();
         setDeadlineString(deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        if (now > deadlineDate && ev.is_submissions_locked) {
+        if (now > deadlineDate && currentEvent.is_submissions_locked) {
           setIsDeadlineOver(true);
         }
       }
 
-      const sub = await apiFetch(`/events/${ev.id}/submissions/my-squad`);
+      // Fetch squad details
+      const squad = await apiFetch<any>(`/events/${targetId}/teams/my-squad`);
+      setMySquad(squad);
+
+      if (squad && squad.problem_statement) {
+        setPsTitle(squad.problem_statement.title);
+      }
+
+      // Fetch existing submission
+      const sub = await apiFetch<any>(`/events/${targetId}/submissions/my-squad`);
       if (sub) {
         setSubmission(sub);
         if (sub.final_receipt_id) {
           setReceipt({
             receipt_id: sub.final_receipt_id,
-            team_name: 'Your Squad',
+            team_name: squad?.name || 'Your Squad',
             content_hash: sub.latest_revision?.content_hash || 'SHA256:VERIFIED',
             server_timestamp: sub.latest_revision?.server_at || new Date().toISOString(),
             verification_qr_payload: `WHYCODE4U:SUBMISSION:${sub.id}`
@@ -76,6 +96,7 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
     } catch (e) {
       console.error(e);
     } finally {
+      setIsSquadLoading(false);
       setLoading(false);
     }
   };
@@ -86,7 +107,7 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
     setSuccessMsg('');
     try {
       setLoading(true);
-      const res = await apiFetch(`/events/${missionId}/submissions/draft?expected_revision=${currentRevNum}`, {
+      const res = await apiFetch<any>(`/events/${missionId}/submissions/draft?expected_revision=${currentRevNum}`, {
         method: 'POST',
         body: JSON.stringify({
           repo_url: repoUrl,
@@ -98,10 +119,10 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
         })
       });
       setCurrentRevNum(res.revision_number);
-      setSuccessMsg(`Draft saved! Revision #${res.revision_number} recorded.`);
-      loadSubmission();
+      setSuccessMsg(`Draft saved as Revision #${res.revision_number}`);
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
-      setConflictMsg(err.message || 'Draft save failed.');
+      setConflictMsg(err.message || 'Draft save conflict. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -109,12 +130,8 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
 
   const handleFinalLaunch = async () => {
     if (isDeadlineOver) return;
-    if (!repoUrl.trim() || !demoUrl.trim()) {
-      setConflictMsg('Please provide both GitHub repository URL and Live Demo URL before submitting.');
-      return;
-    }
-
-    if (!confirm('Submit final project? Once submitted, your Launch Receipt is issued for flight evaluation.')) {
+    if (!repoUrl || !demoUrl || !deckUrl) {
+      setConflictMsg('Please provide Repository, Live Deployment, and Pitch Deck URLs.');
       return;
     }
 
@@ -122,7 +139,7 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
     setSuccessMsg('');
     try {
       setLoading(true);
-      const rcpt = await apiFetch(`/events/${missionId}/submissions/launch?expected_revision=${currentRevNum}`, {
+      const rcpt = await apiFetch<any>(`/events/${missionId}/submissions/launch?expected_revision=${currentRevNum}`, {
         method: 'POST',
         body: JSON.stringify({
           repo_url: repoUrl,
@@ -134,8 +151,8 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
         })
       });
       setReceipt(rcpt);
-      setSuccessMsg('Project successfully submitted! Receipt generated.');
-      loadSubmission();
+      setSuccessMsg('Project officially launched! Cryptographic receipt generated.');
+      loadSubmissionAndSquad();
     } catch (err: any) {
       setConflictMsg(err.message || 'Submission failed.');
     } finally {
@@ -143,8 +160,49 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
     }
   };
 
+  // Locked Gate Check: Squad must lock problem statement first
+  const isPsLocked = Boolean(mySquad?.is_ps_locked);
+
+  if (isSquadLoading) {
+    return (
+      <div className="max-w-md mx-auto my-16 p-8 bg-white border border-black/[0.08] rounded-3xl shadow-apple-card text-center text-neutral-400 text-sm">
+        Checking squad authorization & submission desk status...
+      </div>
+    );
+  }
+
+  if (!isPsLocked) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-8 bg-white border border-black/[0.08] rounded-3xl shadow-apple-card text-center animate-fadeIn">
+        <div className="w-14 h-14 rounded-2xl bg-neutral-100 border border-neutral-200 text-black flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-7 h-7" />
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-neutral-100 text-neutral-800 text-[10px] font-bold uppercase tracking-wider mb-2 border border-neutral-200">
+          Submission Gate Locked
+        </div>
+        <h2 className="text-xl font-bold text-black tracking-tight">
+          Select & Lock a Problem Statement
+        </h2>
+        <p className="text-xs sm:text-sm text-neutral-500 mt-2 leading-relaxed">
+          In WhyCode4U, your squad must select and lock an official Problem Statement before unlocking project submissions. This ensures track verification and fair judging.
+        </p>
+
+        {onNavigate && (
+          <Button
+            variant="primary"
+            onClick={() => onNavigate('problems')}
+            className="mt-6 gap-2 mx-auto rounded-xl bg-black text-white hover:bg-neutral-800 cursor-pointer text-xs py-2 px-5"
+          >
+            <span>View Problem Statements</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-5 max-w-4xl mx-auto text-black">
+    <div className="space-y-5 max-w-4xl mx-auto text-black animate-fadeIn">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-black/[0.08] shadow-apple-card">
         <div>
@@ -167,6 +225,29 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
             <Badge variant="black">Revision #{currentRevNum}</Badge>
           )}
         </div>
+      </div>
+
+      {/* Locked Track Indicator */}
+      <div className="p-3.5 bg-neutral-100 border border-neutral-200 rounded-2xl flex items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div>
+            <span className="font-bold text-black">Locked Problem Statement: </span>
+            <span className="text-neutral-700 font-medium">
+              {mySquad?.problem_statement?.title || psTitle || 'Custom Solution'}
+            </span>
+            <span className="text-neutral-400 ml-2">({mySquad?.track || 'General Track'})</span>
+          </div>
+        </div>
+
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('problems')}
+            className="text-[11px] font-semibold text-neutral-500 hover:text-black underline cursor-pointer"
+          >
+            Review Track
+          </button>
+        )}
       </div>
 
       {/* Strict Deadline Over Banner */}
@@ -228,28 +309,27 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
 
             <div>
               <label className="text-xs font-semibold text-neutral-700 block mb-1">
-                Problem Statement Title
+                Problem Statement Title (Locked)
               </label>
               <input
                 type="text"
-                disabled={isDeadlineOver}
+                disabled
                 value={psTitle}
-                onChange={(e) => setPsTitle(e.target.value)}
-                placeholder="e.g. Autonomous Real-time Edge Diagnostics"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50"
+                className="w-full bg-neutral-100 border border-neutral-200 rounded-xl p-2.5 text-sm text-black font-medium disabled:opacity-80"
               />
             </div>
 
             <div>
               <label className="text-xs font-semibold text-neutral-700 block mb-1">
-                Solution Description & Architecture
+                Solution Description & Architecture Notes *
               </label>
               <textarea
                 rows={3}
+                required
                 disabled={isDeadlineOver}
                 value={psDescription}
                 onChange={(e) => setPsDescription(e.target.value)}
-                placeholder="Explain the problem you solved, your core approach, and the libraries/models used..."
+                placeholder="Explain the problem you solved, your core approach, and the technical libraries/models used..."
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50"
               />
             </div>
@@ -346,7 +426,7 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
                 type="button"
                 onClick={handleSaveDraft}
                 disabled={isDeadlineOver || loading}
-                className="w-full sm:w-auto text-xs rounded-xl"
+                className="w-full sm:w-auto text-xs rounded-xl cursor-pointer"
               >
                 Save Draft (Rev #{currentRevNum + 1})
               </Button>
@@ -355,7 +435,7 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ eventId = 'apoll
                 size="md"
                 type="submit"
                 disabled={isDeadlineOver || loading}
-                className="w-full sm:w-auto gap-1.5 shadow-sm text-xs rounded-xl bg-black text-white hover:bg-neutral-800"
+                className="w-full sm:w-auto gap-1.5 shadow-sm text-xs rounded-xl bg-black text-white hover:bg-neutral-800 cursor-pointer"
               >
                 <Rocket className="w-4 h-4" />
                 <span>Submit Final Project</span>

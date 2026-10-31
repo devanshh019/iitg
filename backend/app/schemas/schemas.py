@@ -147,9 +147,28 @@ class TeamResponse(BaseModel):
     track: Optional[str]
     is_locked: bool
     lock_reason: Optional[str]
+    problem_statement_id: Optional[str] = None
+    is_ps_locked: bool = False
+    ps_locked_at: Optional[datetime.datetime] = None
     member_count: int = 0
     members: List[ParticipantResponse] = []
     created_at: datetime.datetime
+
+
+class ProblemStatementResponse(BaseModel):
+    id: str
+    event_id: str
+    title: str
+    track: str
+    description: str
+    requirements: List[str] = []
+    rules: Optional[str] = None
+    reveal_at: datetime.datetime
+    is_revealed: bool
+
+
+class TeamLockPSRequest(BaseModel):
+    problem_statement_id: str
 
 
 # Boarding / Checkin

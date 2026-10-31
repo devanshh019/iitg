@@ -1,15 +1,143 @@
 """Squads (Teams) API routes."""
+import random
+import string
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from backend.app.db import get_db
-from backend.app.models.entities import Team, Participant, User, TeamHistory
-from backend.app.schemas.schemas import TeamCreate, TeamJoin, TeamTransferLead, TeamOverrideLock, TeamResponse
+from backend.app.models.entities import Team, Participant, User, TeamHistory, ProblemStatement, utcnow
+from backend.app.schemas.schemas import TeamCreate, TeamJoin, TeamTransferLead, TeamOverrideLock, TeamResponse, TeamLockPSRequest
 from backend.app.services.team_service import TeamService
+from backend.app.services.audit_service import AuditService
 from backend.app.api.deps import get_current_user, require_event_role
 
 router = APIRouter(prefix="/events/{event_id}/teams", tags=["Squads / Teams"])
+
+
+@router.get("/my-squad")
+def get_my_squad(
+    event_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    part = db.execute(select(Participant).filter_by(user_id=current_user.id, event_id=event_id)).scalars().first()
+    if not part or not part.squad_id:
+        return None
+    team = db.execute(select(Team).filter_by(id=part.squad_id)).scalars().first()
+    if not team:
+        return None
+    
+    ps = None
+    if team.problem_statement_id:
+        ps_obj = db.execute(select(ProblemStatement).filter_by(id=team.problem_statement_id)).scalars().first()
+        if ps_obj:
+            ps = {
+                "id": ps_obj.id,
+                "title": ps_obj.title,
+                "track": ps_obj.track,
+                "description": ps_obj.description
+            }
+
+    return {
+        "id": team.id,
+        "event_id": team.event_id,
+        "name": team.name,
+        "tagline": team.tagline,
+        "join_code": team.join_code,
+        "leader_id": team.leader_id,
+        "track": team.track,
+        "is_locked": team.is_locked,
+        "problem_statement_id": team.problem_statement_id,
+        "is_ps_locked": team.is_ps_locked or False,
+        "ps_locked_at": team.ps_locked_at,
+        "problem_statement": ps,
+        "member_count": len(team.memberships),
+        "members": [{"id": m.participant.id, "name": m.participant.name, "role": m.role} for m in team.memberships],
+        "created_at": team.created_at
+    }
+
+
+@router.post("/lock-ps")
+def lock_problem_statement(
+    event_id: str,
+    payload: TeamLockPSRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    part = db.execute(select(Participant).filter_by(user_id=current_user.id, event_id=event_id)).scalars().first()
+    if not part:
+        # Auto-enroll user as participant if not already
+        from backend.app.crypto import decrypt_field, deterministic_hash, normalize_email, encrypt_field
+        raw_email = decrypt_field(current_user.email_enc)
+        norm_email = normalize_email(raw_email)
+        em_hash = deterministic_hash(norm_email)
+        part_name = norm_email.split("@")[0].replace(".", " ").capitalize()
+        fallback_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        part = Participant(
+            event_id=event_id,
+            user_id=current_user.id,
+            name=part_name,
+            email_enc=encrypt_field(norm_email),
+            normalized_email_hash=em_hash,
+            dedupe_key=em_hash,
+            consent=True,
+            short_fallback_code=fallback_code,
+            status="registered"
+        )
+        db.add(part)
+        db.flush()
+
+    if not part.squad_id:
+        # Auto-create squad for the participant
+        team_name = f"Squad {part.name}"
+        join_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        team = Team(
+            event_id=event_id,
+            name=team_name,
+            tagline="Hacker Collective",
+            leader_id=part.id,
+            join_code=join_code
+        )
+        db.add(team)
+        db.flush()
+        part.squad_id = team.id
+        from backend.app.models.entities import TeamMembership
+        membership = TeamMembership(team_id=team.id, participant_id=part.id, role="leader")
+        db.add(membership)
+        db.flush()
+    else:
+        team = db.execute(select(Team).filter_by(id=part.squad_id)).scalars().first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Squad not found.")
+
+    ps = db.execute(select(ProblemStatement).filter_by(id=payload.problem_statement_id, event_id=event_id)).scalars().first()
+    if not ps:
+        raise HTTPException(status_code=404, detail="Problem Statement not found in this hackathon.")
+
+    team.problem_statement_id = ps.id
+    team.is_ps_locked = True
+    team.ps_locked_at = utcnow()
+    team.track = ps.track
+
+    AuditService.record_mutation(
+        db=db,
+        actor_id=current_user.id,
+        action="team_ps_locked",
+        entity_type="team",
+        entity_id=team.id,
+        payload={"problem_statement_id": ps.id, "title": ps.title, "track": ps.track},
+        event_id=event_id
+    )
+    db.commit()
+
+    return {
+        "message": "Problem statement locked successfully for your squad.",
+        "is_ps_locked": True,
+        "problem_statement_id": ps.id,
+        "title": ps.title,
+        "track": ps.track
+    }
 
 
 @router.get("/generate-name")

@@ -1,7 +1,8 @@
 import React from 'react';
-import { LogOut, LogIn, Bell, Terminal } from 'lucide-react';
+import { LogOut, LogIn, Bell, Terminal, Building2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { ALL_NAV_ITEMS } from '../config/navigation';
+import { useEvent } from '../context/EventContext';
 
 interface NavbarProps {
   currentView: string;
@@ -26,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onOpenPalette
 }) => {
+  const { currentEvent } = useEvent();
   const visibleNavItems = allowedViews
     .map(id => ALL_NAV_ITEMS[id])
     .filter(Boolean);
@@ -53,6 +55,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Active Hackathon Pill */}
+          {currentEvent && (
+            <button
+              onClick={() => onNavigate('hackathons')}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 rounded-full text-xs text-neutral-800 transition-colors cursor-pointer group"
+              title="Click to switch active hackathon"
+            >
+              <Building2 className="w-3.5 h-3.5 text-neutral-500 group-hover:text-black shrink-0" />
+              <span className="font-semibold truncate max-w-[130px] lg:max-w-[200px]">
+                {currentEvent.title}
+              </span>
+              <span className="text-[10px] text-neutral-500 group-hover:text-black font-medium underline ml-0.5">
+                Switch
+              </span>
+            </button>
+          )}
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { EventProvider } from './context/EventContext';
 import { Navbar } from './components/Navbar';
 import { MobileNav } from './components/MobileNav';
 import { CommandPalette } from './components/CommandPalette';
 import { LoginPage } from './views/LoginPage';
+import { HackathonsDirectoryView } from './views/HackathonsDirectoryView';
 import { CrewPortalView } from './views/CrewPortalView';
 import { SquadsView } from './views/SquadsView';
 import { ProblemStatementsView } from './views/ProblemStatementsView';
@@ -25,7 +27,7 @@ const AppContent: React.FC = () => {
     getDefaultView
   } = useAuth();
 
-  const [currentView, setCurrentView] = useState('crew-portal');
+  const [currentView, setCurrentView] = useState('hackathons');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -89,10 +91,11 @@ const AppContent: React.FC = () => {
           </div>
         ) : (
           <>
+            {currentView === 'hackathons' && <HackathonsDirectoryView onNavigate={handleNavigate} />}
             {currentView === 'crew-portal' && <CrewPortalView onNavigate={handleNavigate} />}
             {currentView === 'squads' && <SquadsView />}
-            {currentView === 'problems' && <ProblemStatementsView />}
-            {currentView === 'launch' && <LaunchDeskView />}
+            {currentView === 'problems' && <ProblemStatementsView onNavigate={handleNavigate} />}
+            {currentView === 'launch' && <LaunchDeskView onNavigate={handleNavigate} />}
             {currentView === 'announcements' && <AnnouncementsView />}
             {currentView === 'passport' && <PassportView />}
           </>
@@ -129,7 +132,9 @@ const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <EventProvider>
+        <AppContent />
+      </EventProvider>
     </AuthProvider>
   );
 };

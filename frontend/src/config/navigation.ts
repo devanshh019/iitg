@@ -1,4 +1,4 @@
-import { Home, Users, Shield, QrCode, Rocket, Award, Terminal, Sparkles, Bell, FileCode2 } from 'lucide-react';
+import { Home, Users, Shield, QrCode, Rocket, Award, Terminal, Sparkles, Bell, FileCode2, Compass } from 'lucide-react';
 import React from 'react';
 
 export interface NavItem {
@@ -10,6 +10,13 @@ export interface NavItem {
 }
 
 export const ALL_NAV_ITEMS: Record<string, NavItem> = {
+  'hackathons': {
+    id: 'hackathons',
+    label: 'Hackathons',
+    mobileLabel: 'Explore',
+    description: 'Explore and participate in multi-org hackathons',
+    icon: Compass
+  },
   'crew-portal': {
     id: 'crew-portal',
     label: 'Home & Pass',

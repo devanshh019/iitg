@@ -33,6 +33,7 @@ env/
 node_modules/
 frontend/dist/
 frontend/build/
+*.tsbuildinfo
 .pnpm-store/
 npm-debug.log*
 yarn-debug.log*

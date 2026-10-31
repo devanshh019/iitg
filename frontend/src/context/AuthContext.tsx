@@ -14,7 +14,7 @@ export interface UserProfile {
   roles: UserRole[];
 }
 
-const USER_NAVIGATION = ['crew-portal', 'squads', 'problems', 'launch', 'announcements', 'passport'];
+const USER_NAVIGATION = ['hackathons', 'crew-portal', 'squads', 'problems', 'launch', 'announcements', 'passport'];
 
 export const ROLE_NAVIGATION: Record<string, string[]> = {
   participant: USER_NAVIGATION,
@@ -25,11 +25,11 @@ export const ROLE_NAVIGATION: Record<string, string[]> = {
 };
 
 export const ROLE_DEFAULT_VIEWS: Record<string, string> = {
-  participant: 'crew-portal',
-  judge: 'crew-portal',
-  volunteer: 'crew-portal',
-  organizer: 'crew-portal',
-  super_admin: 'crew-portal'
+  participant: 'hackathons',
+  judge: 'hackathons',
+  volunteer: 'hackathons',
+  organizer: 'hackathons',
+  super_admin: 'hackathons'
 };
 
 interface AuthContextType {

@@ -5,12 +5,16 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { apiFetch } from '../api/client';
+import { useEvent } from '../context/EventContext';
 
 interface SquadsViewProps {
   eventId?: string;
 }
 
-export const SquadsView: React.FC<SquadsViewProps> = ({ eventId = 'apollo-24' }) => {
+export const SquadsView: React.FC<SquadsViewProps> = ({ eventId: propEventId }) => {
+  const { currentEvent } = useEvent();
+  const targetEventSlug = propEventId || currentEvent?.slug || 'iitg-hacksprint-2026';
+
   const [missionId, setMissionId] = useState<string>('');
   const [squads, setSquads] = useState<any[]>([]);
   const [finderSuggestions, setFinderSuggestions] = useState<any[]>([]);
@@ -27,12 +31,12 @@ export const SquadsView: React.FC<SquadsViewProps> = ({ eventId = 'apollo-24' })
 
   useEffect(() => {
     loadSquads();
-  }, [eventId]);
+  }, [targetEventSlug]);
 
   const loadSquads = async () => {
     try {
       setLoading(true);
-      const ev = await apiFetch(`/events/by-slug/${eventId}`);
+      const ev = await apiFetch<any>(`/events/by-slug/${targetEventSlug}`);
       setMissionId(ev.id);
 
       const list = await apiFetch(`/events/${ev.id}/teams`);

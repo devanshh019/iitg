@@ -141,10 +141,16 @@ class Team(Base):
     extension_deadline = Column(DateTime(timezone=True), nullable=True)
     extension_reason = Column(String(255), nullable=True)
 
+    # Problem Statement selection and lock
+    problem_statement_id = Column(String(36), ForeignKey("problem_statements.id", ondelete="SET NULL"), nullable=True)
+    is_ps_locked = Column(Boolean, default=False)
+    ps_locked_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     event = relationship("Event", back_populates="teams")
+    problem_statement = relationship("ProblemStatement")
     members = relationship("Participant", back_populates="team", foreign_keys="[Participant.squad_id]")
     memberships = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
     history = relationship("TeamHistory", back_populates="team", cascade="all, delete-orphan")
@@ -277,6 +283,8 @@ class ProblemStatement(Base):
     title = Column(String(255), nullable=False)
     track = Column(String(100), default="general")
     description = Column(Text, nullable=False)
+    requirements = Column(JSON, nullable=False, default=list)
+    rules = Column(Text, nullable=True)
     reveal_at = Column(DateTime(timezone=True), nullable=False)
     is_revealed = Column(Boolean, default=False)
 

@@ -10,14 +10,18 @@ import { Badge } from '../components/ui/Badge';
 import { StatusRibbon } from '../components/ui/StatusRibbon';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useEvent } from '../context/EventContext';
 
 interface CrewPortalViewProps {
   onNavigate: (view: string) => void;
   eventId?: string;
 }
 
-export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, eventId = 'apollo-24' }) => {
+export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, eventId: propEventId }) => {
   const { user } = useAuth();
+  const { currentEvent } = useEvent();
+  const targetEventSlug = propEventId || currentEvent?.slug || 'iitg-hacksprint-2026';
+
   const [missionData, setMissionData] = useState<any>(null);
   const [boardingPass, setBoardingPass] = useState<any>(null);
   const [tokens, setTokens] = useState<any[]>([]);
@@ -28,12 +32,12 @@ export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, even
 
   useEffect(() => {
     loadPortalData();
-  }, [eventId]);
+  }, [targetEventSlug]);
 
   const loadPortalData = async () => {
     try {
       setLoading(true);
-      const event = await apiFetch(`/events/by-slug/${eventId}`);
+      const event = await apiFetch<any>(`/events/by-slug/${targetEventSlug}`);
       setMissionData(event);
 
       try {
@@ -66,7 +70,9 @@ export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, even
                 Hackathon Live
               </span>
               <span className="text-neutral-300">•</span>
-              <span className="text-xs text-neutral-500 font-medium">WhyCode4U Apollo 24</span>
+              <span className="text-xs text-neutral-500 font-medium">
+                {currentEvent?.title || 'WhyCode4U Hackathon'}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-black tracking-tight">
               {boardingPass?.participant_name ? `Welcome, ${boardingPass.participant_name}` : 'Welcome, Hacker!'}
