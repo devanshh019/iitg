@@ -26,9 +26,9 @@ export const ALL_NAV_ITEMS: Record<string, NavItem> = {
   },
   'crew-portal': {
     id: 'crew-portal',
-    label: 'Home & Pass',
-    mobileLabel: 'Home',
-    description: 'Event status and digital QR passes',
+    label: 'Registered',
+    mobileLabel: 'Registered',
+    description: 'Registered status and digital pass',
     icon: Home
   },
   'squads': {

@@ -58,13 +58,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onCancel }) => 
         {/* Brand Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-black text-white shadow-apple-card mb-3">
-            <span className="font-bold text-lg tracking-tight">W4U</span>
+            <span className="font-bold text-lg tracking-wider">H</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-            WhyCode<span className="text-neutral-500">4U</span>
+            Hack<span className="text-neutral-500">OS</span>
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-1">
-            Student Hackathon Platform
+            Apex Innovation & Hackathon Operating System
           </p>
         </div>
 

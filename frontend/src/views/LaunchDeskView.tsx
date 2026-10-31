@@ -184,7 +184,7 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
           Select & Lock a Problem Statement
         </h2>
         <p className="text-xs sm:text-sm text-neutral-500 mt-2 leading-relaxed">
-          In WhyCode4U, your squad must select and lock an official Problem Statement before unlocking project submissions. This ensures track verification and fair judging.
+          In HackOS, your squad must select and lock an official Problem Statement before unlocking project submissions. This ensures track verification and fair judging.
         </p>
 
         {onNavigate && (

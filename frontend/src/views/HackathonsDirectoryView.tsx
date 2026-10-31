@@ -103,7 +103,7 @@ export const HackathonsDirectoryView: React.FC<HackathonsDirectoryViewProps> = (
                 Apex Innovation Arenas
               </span>
               <span className="text-neutral-300">•</span>
-              <span className="text-xs text-neutral-500 font-medium">Multi-Organization Federation</span>
+              <span className="text-xs text-neutral-500 font-medium">HackOS Global Federation</span>
             </div>
 
             {/* Apple Headline */}

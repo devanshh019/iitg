@@ -58,7 +58,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           <Search className="w-5 h-5 text-black" />
           <input
             type="text"
-            placeholder="Search WhyCode4U sections or press ESC to dismiss..."
+            placeholder="Search HackOS sections or press ESC to dismiss..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-transparent text-sm text-black placeholder-neutral-400 focus:outline-none"

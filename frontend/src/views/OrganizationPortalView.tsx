@@ -239,7 +239,7 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
                 Organization Operations
               </span>
               <span className="text-neutral-300">•</span>
-              <span className="text-xs text-neutral-500 font-medium">WhyCode4U Mission Control</span>
+              <span className="text-xs text-neutral-500 font-medium">HackOS Mission Control</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
               Host & Manage Hackathon Arenas

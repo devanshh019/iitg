@@ -71,7 +71,7 @@ export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, even
               </span>
               <span className="text-neutral-300">•</span>
               <span className="text-xs text-neutral-500 font-medium">
-                {currentEvent?.title || 'WhyCode4U Hackathon'}
+                {currentEvent?.title || 'HackOS Arena'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-black tracking-tight">
@@ -174,7 +174,7 @@ export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, even
           <div className="fixed inset-0 bg-black/40 backdrop-blur-md" onClick={() => setShowPassModal(false)} />
           <div className="relative w-full max-w-sm bg-white border border-black/10 rounded-3xl shadow-apple-modal p-6 text-center z-10 text-black animate-fadeIn">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-bold text-black">WhyCode4U Digital Pass</span>
+              <span className="text-xs font-bold text-black">HackOS Digital Pass</span>
               <button
                 onClick={() => setShowPassModal(false)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
