@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>HACKOS — Mission Control</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#06B6D4" />
+    <meta name="description" content="HACKOS Mission Control Hackathon Operating System" />
+  </head>
+  <body class="bg-space-950 text-slate-100 min-h-screen antialiased selection:bg-cyan-500 selection:text-space-950">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration note:', err));
+        });
+      }
+    </script>
+  </body>
+</html>
