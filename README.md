@@ -1,15 +1,18 @@
-# HACKOS: Mission Control Hackathon Operating System
+# WhyCode4U: Mission Control Hackathon Operating System
 
 Production-grade, offline-first operating system for hackathons and builder sprints. Built for resilience under adverse network conditions, cryptographic auditability, and fluid Apple-inspired UI motion.
 
-```
-██╗  ██╗ █████╗  ██████╗██╗  ██╗ ██████╗ ███████╗
-██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔═══██╗██╔════╝
-███████║███████║██║     █████═╝ ██║   ██║███████╗
-██╔══██║██╔══██║██║     ██╔═██╗ ██║   ██║╚════██║
-██║  ██║██║  ██║╚██████╗██║ ╚██╗╚██████╔╝███████║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
-```
+---
+
+## UI & Screenshots
+
+| 1. Hacker Authentication & Onboarding | 2. Mission Pass & Gate/Food QR Codes |
+|:---:|:---:|
+| ![Authentication](docs/screenshots/screenshot-1.png) | ![Mission Pass](docs/screenshots/screenshot-2.png) |
+
+| 3. Problem Statements & Live Hackathon Countdown |
+|:---:|
+| ![Problem Statements](docs/screenshots/screenshot-3.png) |
 
 ---
 
