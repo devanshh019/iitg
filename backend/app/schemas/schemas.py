@@ -33,6 +33,41 @@ class UserCreate(BaseModel):
     is_super_admin: bool = False
 
 
+# Organizations
+class OrganizationCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+    slug: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+    website: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
+    logo_url: Optional[str] = None
+    category: str = "university"
+
+
+class OrganizationUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    website: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
+    logo_url: Optional[str] = None
+    category: Optional[str] = None
+
+
+class OrganizationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    description: Optional[str] = None
+    website: Optional[str] = None
+    contact_email: Optional[str] = None
+    logo_url: Optional[str] = None
+    category: str
+    is_verified: bool
+    owner_id: Optional[str] = None
+    events_count: int = 0
+    created_at: datetime.datetime
+
+
 # Events / Missions
 class EventCreate(BaseModel):
     slug: str = Field(..., min_length=3, max_length=50)

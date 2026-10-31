@@ -12,6 +12,7 @@ import { ProblemStatementsView } from './views/ProblemStatementsView';
 import { LaunchDeskView } from './views/LaunchDeskView';
 import { AnnouncementsView } from './views/AnnouncementsView';
 import { PassportView } from './views/PassportView';
+import { OrganizationPortalView } from './views/OrganizationPortalView';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
@@ -98,6 +99,7 @@ const AppContent: React.FC = () => {
             {currentView === 'launch' && <LaunchDeskView onNavigate={handleNavigate} />}
             {currentView === 'announcements' && <AnnouncementsView />}
             {currentView === 'passport' && <PassportView />}
+            {currentView === 'org-portal' && <OrganizationPortalView onNavigate={handleNavigate} />}
           </>
         )}
       </main>

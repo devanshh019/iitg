@@ -1,5 +1,6 @@
 """Multi-Organization Hackathons & Problem Statements Seed Script.
-Seeds 3 distinct hackathons hosted by different organizations:
+Seeds 3 distinct hackathons hosted by different organizations with rich metadata:
+- Sponsors, prize breakdown, schedule, eligibility, and perks
 1. IIT Guwahati National HackSprint 2026 (In-Person / Live Now)
 2. Apollo 24: Deep Space Orbital Hackathon (Apollo Aerospace Labs / Starts in ~3 Hours)
 3. Global Web3 & Distributed Cloud Summit (Ethereum Foundation / Upcoming Tomorrow)
@@ -13,18 +14,61 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from backend.app.db import SessionLocal
-from backend.app.models.entities import Event, User, ProblemStatement, utcnow
+from backend.app.models.entities import Event, User, ProblemStatement, Organization, utcnow
 from backend.app.services.event_service import EventService
 from backend.app.services.auth_service import AuthService
 from backend.app.schemas.schemas import EventCreate
 
 def seed_multi_org():
     db: Session = SessionLocal()
-    print("🌱 Seeding Multi-Organization Hackathons and Problem Statements...")
+    print("🌱 Seeding Multi-Organization Hackathons with Rich Apple Dossiers...")
 
     # Ensure admin user exists
     admin_user = AuthService.register_or_get_user(
         db, email="admin@hackos.io", password="Password123!", is_super_admin=True
+    )
+
+    now = utcnow()
+
+    # Seed Organizations
+    def get_or_create_org(name, slug, category, website, desc):
+        org = db.query(Organization).filter_by(slug=slug).first()
+        if not org:
+            org = Organization(
+                name=name,
+                slug=slug,
+                category=category,
+                website=website,
+                description=desc,
+                contact_email=f"contact@{slug}.org",
+                is_verified=True,
+                owner_id=admin_user.id
+            )
+            db.add(org)
+            db.commit()
+            db.refresh(org)
+        return org
+
+    org1 = get_or_create_org(
+        name="IIT Guwahati Tech Council",
+        slug="iitg-tech-council",
+        category="university",
+        website="https://iitg.ac.in",
+        desc="Apex student technical council of Indian Institute of Technology Guwahati organizing nationwide innovation sprints."
+    )
+    org2 = get_or_create_org(
+        name="Apollo Aerospace Labs & NASA JPL",
+        slug="apollo-aerospace",
+        category="aerospace",
+        website="https://apollo.hackos.io",
+        desc="Deep space mission consortium advancing autonomous flight systems, satellite constellations, and interplanetary telemetry."
+    )
+    org3 = get_or_create_org(
+        name="Ethereum Foundation & Global Dev League",
+        slug="ethereum-foundation",
+        category="foundation",
+        website="https://ethereum.org",
+        desc="Global decentralized developer federation advancing zero-knowledge cryptography, Layer 2 scaling, and open compute."
     )
 
     # 1. IIT Guwahati National HackSprint 2026 (Live Now)
@@ -34,7 +78,6 @@ def seed_multi_org():
         db.delete(ev1)
         db.commit()
 
-    now = utcnow()
     ev1_payload = EventCreate(
         slug=slug1,
         title="IIT Guwahati National HackSprint 2026",
@@ -46,18 +89,48 @@ def seed_multi_org():
         grace_period_minutes=30
     )
     ev1 = EventService.create_event(db, ev1_payload, actor_id=admin_user.id)
+    ev1.organization_id = org1.id
     ev1.status = "ongoing"
     ev1.format_config = {
         "organization": "IIT Guwahati Tech Council",
+        "organization_role": "Academic & Research Host",
+        "organization_badge": "Premier Institute",
         "prize_pool": "₹5,00,000 INR",
         "venue_type": "In-Person (Guwahati, Assam)",
-        "mode": "In-Person",
+        "mode": "In-Person Campus Hackathon",
+        "address": "Technology Complex, IIT Guwahati, Amingaon, North Guwahati, Assam 781039",
         "tags": ["AI/ML", "IoT", "CleanTech", "Social Good"],
-        "hero_badge": "LIVE HACKATHON"
+        "hero_badge": "LIVE HACKATHON",
+        "sponsors": [
+            {"name": "Google Cloud", "tier": "Title Cloud Partner", "perk": "$500 Vertex AI Credits per squad"},
+            {"name": "NVIDIA", "tier": "Compute Sponsor", "perk": "Dedicated RTX 6000 Ada GPU Instances"},
+            {"name": "Intel AI", "tier": "Hardware Acceleration", "perk": "OpenVINO Developer Toolkits"},
+            {"name": "GitHub Education", "tier": "Developer Platform", "perk": "GitHub Enterprise & Copilot Access"},
+            {"name": "Postman", "tier": "API Innovation", "perk": "Postman Enterprise Workspaces & Swag"}
+        ],
+        "prize_breakdown": [
+            {"place": "1st Place (Grand Champion)", "amount": "₹2,50,000", "perk": "IIT Guwahati Technology Incubation Fast-Track + Seed Grant"},
+            {"place": "2nd Place (Runner-Up)", "amount": "₹1,50,000", "perk": "Direct Angel Pitch Day + Cloud Compute Vouchers"},
+            {"place": "3rd Place (Impact Award)", "amount": "₹1,00,000", "perk": "Hardware Prototyping Stipend + Mentorship"}
+        ],
+        "eligibility": "Open to all enrolled undergraduate, postgraduate, and PhD engineering students worldwide. Squad size: 1 to 4 hackers.",
+        "schedule": [
+            {"time": "08:00 AM", "label": "Security Clearance & Physical Check-in at Technology Complex"},
+            {"time": "10:00 AM", "label": "Grand Opening Ceremony & Keynote by Tech Council Dean"},
+            {"time": "11:00 AM", "label": "Problem Statements Reveal & Squad Track Lock"},
+            {"time": "04:00 PM", "label": "Architecture Review Round 1 with Research Faculty"},
+            {"time": "07:00 AM (Next Day)", "label": "Project Submission Freeze & Cryptographic Receipt Generation"},
+            {"time": "09:30 AM (Next Day)", "label": "Live Demo Pitch to Jury & Prize Distribution"}
+        ],
+        "perks": [
+            "24/7 Air-Conditioned High-Speed Fiber Lab Facilities",
+            "Continuous Gourmet Catering, Energy Drinks, and Espresso Bar",
+            "Hardware Lab Access with Oscilloscopes, ESP32, and Raspberry Pi kits",
+            "Verifiable Digital Identity Credential on Sovereign Ledger"
+        ]
     }
     db.commit()
 
-    # Seed Problem Statements for IIT Guwahati
     ps1_1 = ProblemStatement(
         event_id=ev1.id,
         title="Brahmaputra AI Flood Warning & Hydrological Alert Grid",
@@ -105,7 +178,6 @@ def seed_multi_org():
     )
     db.add_all([ps1_1, ps1_2, ps1_3])
     db.commit()
-    print(f"✅ IIT Guwahati HackSprint seeded with 3 live Problem Statements (Event ID: {ev1.id})")
 
     # 2. Apollo 24: Deep Space Orbital Hackathon (Starts in ~3 Hours)
     slug2 = "apollo-24"
@@ -125,18 +197,47 @@ def seed_multi_org():
         grace_period_minutes=20
     )
     ev2 = EventService.create_event(db, ev2_payload, actor_id=admin_user.id)
+    ev2.organization_id = org2.id
     ev2.status = "published"
     ev2.format_config = {
         "organization": "Apollo Aerospace Labs & NASA JPL",
+        "organization_role": "DeepTech & Space Mission Federation",
+        "organization_badge": "Aerospace Partner",
         "prize_pool": "$50,000 USD",
         "venue_type": "Hybrid (San Francisco & Global Virtual)",
-        "mode": "Hybrid",
+        "mode": "Hybrid (In-Person Hangar + Virtual Matrix)",
+        "address": "Pier 70 Space Technology Hangar, San Francisco, CA & Global Discord Matrix",
         "tags": ["Aerospace", "DeepTech", "Autonomous Systems", "Rust"],
-        "hero_badge": "STARTS IN 3 HOURS"
+        "hero_badge": "STARTS IN 3 HOURS",
+        "sponsors": [
+            {"name": "NASA JPL Open Source", "tier": "Mission Partner", "perk": "NASA Deep Space Network Open Telemetry API"},
+            {"name": "SpaceX Starlink", "tier": "Communications Partner", "perk": "High-throughput satellite test links"},
+            {"name": "AWS Aerospace", "tier": "Ground Station Sponsor", "perk": "AWS Ground Station & Bedrock AI credits"},
+            {"name": "Rust Foundation", "tier": "Systems Language Partner", "perk": "Embedded Rust hardware grants"}
+        ],
+        "prize_breakdown": [
+            {"place": "1st Place (Orbital Champion)", "amount": "$25,000 USD", "perk": "Flight software tested on orbital CubeSat mission"},
+            {"place": "2nd Place (Telemetry Innovation)", "amount": "$15,000 USD", "perk": "NASA JPL Tech Transfer mentorship"},
+            {"place": "3rd Place (Fault Tolerance)", "amount": "$10,000 USD", "perk": "Direct interview with SpaceX flight software team"}
+        ],
+        "eligibility": "Open to global software engineers, aerospace students, robotics enthusiasts, and systems researchers. Solo or teams of up to 4.",
+        "schedule": [
+            {"time": "T - 3 Hours", "label": "Live Countdown & Space Hangar Doors Open"},
+            {"time": "T - 0:00:00", "label": "Orbital Ignition & Problem Statements Unsealed"},
+            {"time": "T + 4 Hours", "label": "Squad Telemetry & Track Selection Final Lock"},
+            {"time": "T + 12 Hours", "label": "Mid-Flight Deep Space Flight Director Review"},
+            {"time": "T + 24 Hours", "label": "Hard Telemetry Freeze & SHA-256 Receipt Seal"},
+            {"time": "T + 26 Hours", "label": "Orbital Review & Award Broadcast"}
+        ],
+        "perks": [
+            "Access to simulated Low Earth Orbit & Martian Telemetry datasets",
+            "Dedicated flight software mentors from NASA JPL and aerospace startups",
+            "Full food and coffee bar at SF Hangar + remote hacker kits mailed worldwide",
+            "Exclusive Apollo 24 Mission Patch NFT and physical aerospace badge"
+        ]
     }
     db.commit()
 
-    # Seed Apollo Problem Statements (Sealed until starts_at!)
     ps2_1 = ProblemStatement(
         event_id=ev2.id,
         title="Orbital Telemetry Neural Anomaly Detection",
@@ -181,7 +282,6 @@ def seed_multi_org():
     )
     db.add_all([ps2_1, ps2_2, ps2_3])
     db.commit()
-    print(f"✅ Apollo 24 seeded with 3 sealed Problem Statements (Event ID: {ev2.id})")
 
     # 3. Global Web3 & Distributed Cloud Summit (Starts Tomorrow)
     slug3 = "eth-cloud-2026"
@@ -201,14 +301,44 @@ def seed_multi_org():
         grace_period_minutes=45
     )
     ev3 = EventService.create_event(db, ev3_payload, actor_id=admin_user.id)
+    ev3.organization_id = org3.id
     ev3.status = "published"
     ev3.format_config = {
         "organization": "Ethereum Foundation & Global Dev League",
+        "organization_role": "Decentralized Foundation & Protocol Alliance",
+        "organization_badge": "Global DAO",
         "prize_pool": "$100,000 USDC",
         "venue_type": "Virtual / Global",
-        "mode": "Virtual",
+        "mode": "100% Virtual Distributed Summit",
+        "address": "Decentralized Livestream & Global Discord / Telegram Hacker Hubs",
         "tags": ["Web3", "ZK-SNARKs", "Decentralized Cloud", "Solidity"],
-        "hero_badge": "UPCOMING"
+        "hero_badge": "UPCOMING",
+        "sponsors": [
+            {"name": "Ethereum Foundation", "tier": "Ecosystem Sovereign", "perk": "ZK-Grant Program Fast-Track"},
+            {"name": "Arbitrum Foundation", "tier": "L2 Infrastructure", "perk": "$30,000 Track Bounty for Stylus smart contracts"},
+            {"name": "Protocol Labs", "tier": "Storage & Compute", "perk": "Filecoin & IPFS decentralized storage bounties"},
+            {"name": "Chainlink", "tier": "Oracle Partner", "perk": "Chainlink CCIP cross-chain interoperability bounty"}
+        ],
+        "prize_breakdown": [
+            {"place": "1st Place (Grand Sovereign)", "amount": "$40,000 USDC", "perk": "Direct grant consideration with Ethereum Foundation Next Gen"},
+            {"place": "2nd Place (Infrastructure Award)", "amount": "$30,000 USDC", "perk": "Arbitrum Stylus accelerator seed funding"},
+            {"place": "3rd Place (Privacy & ZK Award)", "amount": "$20,000 USDC", "perk": "Security audit voucher with top crypto firm"},
+            {"place": "Track Pool Bounties", "amount": "$10,000 USDC", "perk": "Shared across specialized track challenges"}
+        ],
+        "eligibility": "Global developers, cryptographers, distributed systems architects, and students of all experience levels.",
+        "schedule": [
+            {"time": "Day 1 - 09:00 UTC", "label": "Keynote on Zero-Knowledge Proofs & Protocol Scaling"},
+            {"time": "Day 1 - 10:00 UTC", "label": "Official Problem Statement Unsealing & Hackathon Kickoff"},
+            {"time": "Day 2 - 14:00 UTC", "label": "Office Hours with Ethereum Core Researchers"},
+            {"time": "Day 3 - 06:00 UTC", "label": "Submission Deadline & On-Chain Audit Lock"},
+            {"time": "Day 3 - 12:00 UTC", "label": "Final Demo Day Broadcast & USDC Distribution"}
+        ],
+        "perks": [
+            "100% On-Chain Escrow Payouts directly in USDC upon jury confirmation",
+            "Zero gas testnet faucets provided for all registered participants",
+            "Exclusive NFT POAP badge minted on Arbitrum One",
+            "Direct introductions to crypto venture funds looking to seed hackathon winners"
+        ]
     }
     db.commit()
 
@@ -242,10 +372,9 @@ def seed_multi_org():
     )
     db.add_all([ps3_1, ps3_2])
     db.commit()
-    print(f"✅ Web3 Summit seeded with 2 Problem Statements (Event ID: {ev3.id})")
 
     db.close()
-    print("✨ Multi-Organization Hackathons and Problem Statements successfully seeded!")
+    print("✨ Multi-Organization Hackathons seeded with rich Apple metadata successfully!")
 
 if __name__ == "__main__":
     seed_multi_org()

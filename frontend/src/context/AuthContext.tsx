@@ -14,7 +14,7 @@ export interface UserProfile {
   roles: UserRole[];
 }
 
-const USER_NAVIGATION = ['hackathons', 'crew-portal', 'squads', 'problems', 'launch', 'announcements', 'passport'];
+const USER_NAVIGATION = ['hackathons', 'crew-portal', 'squads', 'problems', 'launch', 'announcements', 'passport', 'org-portal'];
 
 export const ROLE_NAVIGATION: Record<string, string[]> = {
   participant: USER_NAVIGATION,

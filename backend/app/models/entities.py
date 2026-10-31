@@ -40,11 +40,13 @@ class Event(Base):
     grace_period_minutes = Column(Integer, default=15)
     is_submissions_locked = Column(Boolean, default=False)
     is_teams_locked = Column(Boolean, default=False)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     # Relationships
+    organization_rel = relationship("Organization", back_populates="events")
     roles = relationship("EventRole", back_populates="event", cascade="all, delete-orphan")
     participants = relationship("Participant", back_populates="event", cascade="all, delete-orphan")
     teams = relationship("Team", back_populates="event", cascade="all, delete-orphan")
@@ -53,6 +55,28 @@ class Event(Base):
     submissions = relationship("Submission", back_populates="event", cascade="all, delete-orphan")
     rubrics = relationship("Rubric", back_populates="event", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="event", cascade="all, delete-orphan")
+
+
+class Organization(Base):
+    """Organizations hosting hackathon arenas (Universities, Enterprises, DAOs)."""
+    __tablename__ = "organizations"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    website = Column(String(255), nullable=True)
+    contact_email = Column(String(255), nullable=True)
+    logo_url = Column(String(255), nullable=True)
+    category = Column(String(100), default="university")
+    is_verified = Column(Boolean, default=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+    owner = relationship("User")
+    events = relationship("Event", back_populates="organization_rel")
 
 
 class User(Base):

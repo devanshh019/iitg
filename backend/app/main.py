@@ -9,7 +9,7 @@ from sqlalchemy import text
 from backend.app.config import settings
 from backend.app.db import engine, Base
 from backend.app.api.routers import (
-    auth, events, participants, teams, boarding, submissions, judging, audit, exports, announcements, fun
+    auth, events, participants, teams, boarding, submissions, judging, audit, exports, announcements, fun, organizations
 )
 
 
@@ -101,3 +101,4 @@ app.include_router(audit.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
 app.include_router(announcements.router, prefix="/api")
 app.include_router(fun.router, prefix="/api")
+app.include_router(organizations.router, prefix="/api")
