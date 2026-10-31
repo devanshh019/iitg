@@ -1,107 +1,136 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
+import { MobileNav } from './components/MobileNav';
 import { CommandPalette } from './components/CommandPalette';
+import { LoginPage } from './views/LoginPage';
 import { CrewPortalView } from './views/CrewPortalView';
 import { SquadsView } from './views/SquadsView';
-import { BoardingScannerView } from './views/BoardingScannerView';
+import { ProblemStatementsView } from './views/ProblemStatementsView';
 import { LaunchDeskView } from './views/LaunchDeskView';
-import { JudgingView } from './views/JudgingView';
-import { MissionControlView } from './views/MissionControlView';
-import { BigScreenView } from './views/BigScreenView';
+import { AnnouncementsView } from './views/AnnouncementsView';
 import { PassportView } from './views/PassportView';
-import { getStoredAuth, setStoredAuth, clearStoredAuth, apiFetch } from './api/client';
+import { ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Button } from './components/ui/Button';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const {
+    user,
+    isAuthenticated,
+    activeRole,
+    logout,
+    isLoading,
+    canAccessView,
+    getAllowedViews,
+    getDefaultView
+  } = useAuth();
+
   const [currentView, setCurrentView] = useState('crew-portal');
-  const [userRole, setUserRole] = useState('organizer');
-  const [userEmail, setUserEmail] = useState<string | null>('flight-director@hackos.io');
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [isBigScreenActive, setIsBigScreenActive] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // Synchronize view with active role whenever role changes
   useEffect(() => {
-    // Initial demo login as organizer
-    authenticateAsRole('organizer');
-  }, []);
-
-  const authenticateAsRole = async (role: string) => {
-    setUserRole(role);
-    const roleEmails: Record<string, string> = {
-      super_admin: 'commander@hackos.io',
-      organizer: 'flight-director@hackos.io',
-      volunteer: 'gate-crew@hackos.io',
-      judge: 'judge1@hackos.io',
-      participant: 'crew_1_phoenix@apollo.hackos.io'
-    };
-    const targetEmail = roleEmails[role] || 'flight-director@hackos.io';
-    setUserEmail(targetEmail);
-
-    try {
-      const res = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: targetEmail, password: 'Password123!' })
-      });
-      setStoredAuth({
-        token: res.access_token,
-        userId: res.user_id,
-        isSuperAdmin: res.is_super_admin,
-        roles: res.roles,
-        email: targetEmail
-      });
-    } catch (e) {
-      console.warn('Demo login note:', e);
+    const allowed = getAllowedViews();
+    if (!allowed.includes(currentView)) {
+      const defaultForRole = getDefaultView();
+      setCurrentView(defaultForRole);
     }
-  };
-
-  const handleDemoReset = async () => {
-    if (confirm('Execute one-click Demo Reset for Apollo 24?')) {
-      alert('Demo mission state verified and operational.');
-    }
-  };
+  }, [activeRole]);
 
   const handleNavigate = (view: string) => {
-    if (view === 'big-screen') {
-      setIsBigScreenActive(true);
-    } else {
-      setIsBigScreenActive(false);
-      setCurrentView(view);
-    }
+    setCurrentView(view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (isBigScreenActive) {
-    return <BigScreenView onExit={() => setIsBigScreenActive(false)} />;
+  // If unauthenticated, show multi-step login
+  if (!isAuthenticated && !isLoading) {
+    return <LoginPage onSuccess={() => setShowLoginModal(false)} />;
   }
 
+  const allowedViews = getAllowedViews();
+  const isViewPermitted = canAccessView(currentView);
+
   return (
-    <div className="min-h-screen bg-space-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FBFBFD] text-black flex flex-col font-sans selection:bg-neutral-200 selection:text-black">
+      {/* Sticky Apple Navigation Bar */}
       <Navbar
         currentView={currentView}
         onNavigate={handleNavigate}
-        userRole={userRole}
-        userEmail={userEmail}
-        onLogout={() => {
-          clearStoredAuth();
-          authenticateAsRole('participant');
-        }}
-        onSwitchRole={authenticateAsRole}
+        userRole={activeRole}
+        userEmail={user?.email || null}
+        isAuthenticated={isAuthenticated}
+        allowedViews={allowedViews}
+        onOpenLogin={() => setShowLoginModal(true)}
+        onLogout={logout}
         onOpenPalette={() => setPaletteOpen(true)}
       />
 
-      <main className="flex-1 pb-16">
-        {currentView === 'crew-portal' && <CrewPortalView onNavigate={handleNavigate} />}
-        {currentView === 'squads' && <SquadsView />}
-        {currentView === 'scanner' && <BoardingScannerView />}
-        {currentView === 'launch' && <LaunchDeskView />}
-        {currentView === 'judging' && <JudgingView />}
-        {currentView === 'mission-control' && <MissionControlView />}
-        {currentView === 'passport' && <PassportView />}
+      {/* Main App Content Area */}
+      <main className="flex-1 pb-24 lg:pb-16 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4">
+        {!isViewPermitted ? (
+          <div className="max-w-md mx-auto my-12 p-8 bg-white border border-black/[0.08] rounded-3xl shadow-apple-card text-center animate-fadeIn">
+            <div className="w-12 h-12 rounded-2xl bg-neutral-100 border border-neutral-200 text-black flex items-center justify-center mx-auto mb-3">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-bold text-black tracking-tight">Access Restricted</h2>
+            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+              This feature is only available to authorized event roles.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setCurrentView(getDefaultView())}
+              className="mt-5 gap-2 mx-auto rounded-xl bg-black text-white hover:bg-neutral-800"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Home</span>
+            </Button>
+          </div>
+        ) : (
+          <>
+            {currentView === 'crew-portal' && <CrewPortalView onNavigate={handleNavigate} />}
+            {currentView === 'squads' && <SquadsView />}
+            {currentView === 'problems' && <ProblemStatementsView />}
+            {currentView === 'launch' && <LaunchDeskView />}
+            {currentView === 'announcements' && <AnnouncementsView />}
+            {currentView === 'passport' && <PassportView />}
+          </>
+        )}
       </main>
 
-      {/* Interactive Command Palette */}
+      {/* Mobile-first bottom navigation bar */}
+      <MobileNav
+        currentView={currentView}
+        onNavigate={handleNavigate}
+        allowedViews={allowedViews}
+      />
+
+      {/* Command Palette */}
       <CommandPalette
         onNavigate={handleNavigate}
-        onTriggerDemoReset={handleDemoReset}
+        allowedViews={allowedViews}
+        userRole={activeRole}
       />
+
+      {/* Optional Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <LoginPage
+            onSuccess={() => setShowLoginModal(false)}
+            onCancel={() => setShowLoginModal(false)}
+          />
+        </div>
+      )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

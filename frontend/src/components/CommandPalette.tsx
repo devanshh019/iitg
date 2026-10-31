@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Search, Award, Users, QrCode, Rocket, Shield, Moon, Sun, Sparkles } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { ALL_NAV_ITEMS } from '../config/navigation';
 
 interface CommandPaletteProps {
   onNavigate: (view: string) => void;
+  allowedViews: string[];
+  userRole: string;
   onTriggerDemoReset?: () => void;
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({ onNavigate, onTriggerDemoReset }) => {
+export const CommandPalette: React.FC<CommandPaletteProps> = ({
+  onNavigate,
+  allowedViews,
+  userRole
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [konamiUnlocked, setKonamiUnlocked] = useState(false);
-
-  // Konami Code sequence: Up, Up, Down, Down, Left, Right, Left, Right, b, a
-  const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-  const [keySequence, setKeySequence] = useState<string[]>([]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle Ctrl+K or Cmd+K
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsOpen(prev => !prev);
@@ -25,16 +26,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ onNavigate, onTr
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
       }
-
-      // Check Konami Code
-      setKeySequence(prev => {
-        const updated = [...prev, e.key].slice(-KONAMI_CODE.length);
-        if (updated.join('') === KONAMI_CODE.join('')) {
-          setKonamiUnlocked(true);
-          alert('🚀 KONAMI CODE OVERDRIVE ACTIVATED: Warp Drive Engaged! 🌟');
-        }
-        return updated;
-      });
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -43,39 +34,42 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ onNavigate, onTr
 
   if (!isOpen) return null;
 
-  const actions = [
-    { label: 'Mission Control Dashboard', icon: Terminal, action: () => onNavigate('mission-control') },
-    { label: 'Crew Portal (Status & Schedule)', icon: Users, action: () => onNavigate('crew-portal') },
-    { label: 'Boarding Gate Scanner (PWA)', icon: QrCode, action: () => onNavigate('scanner') },
-    { label: 'Launch Desk (Submissions)', icon: Rocket, action: () => onNavigate('launch') },
-    { label: 'Flight Review (Judging & Rubrics)', icon: Shield, action: () => onNavigate('judging') },
-    { label: 'Big Screen Mode (Projection)', icon: Award, action: () => onNavigate('big-screen') },
-    { label: 'Crew Passport & Stamps', icon: Sparkles, action: () => onNavigate('passport') },
-    { label: 'Reset Demo Mission (Apollo 24)', icon: Sparkles, action: () => onTriggerDemoReset && onTriggerDemoReset() }
-  ];
+  const baseActions = allowedViews.map(viewId => {
+    const item = ALL_NAV_ITEMS[viewId];
+    if (!item) return null;
+    return {
+      label: item.label,
+      description: item.description,
+      icon: item.icon,
+      action: () => onNavigate(viewId)
+    };
+  }).filter(Boolean) as Array<{ label: string; description: string; icon: any; action: () => void }>;
 
-  const filtered = actions.filter(a => a.label.toLowerCase().includes(query.toLowerCase()));
+  const filtered = baseActions.filter(a =>
+    a.label.toLowerCase().includes(query.toLowerCase()) ||
+    a.description.toLowerCase().includes(query.toLowerCase())
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4">
-      <div className="fixed inset-0 bg-space-950/80 backdrop-blur-md" onClick={() => setIsOpen(false)} />
-      <div className="relative w-full max-w-xl bg-space-900 border border-cyan-500/40 rounded-xl shadow-glow-cyan overflow-hidden z-10">
-        <div className="flex items-center px-4 py-3 border-b border-space-800 gap-3">
-          <Search className="w-5 h-5 text-cyan-400" />
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md" onClick={() => setIsOpen(false)} />
+      <div className="relative w-full max-w-lg bg-white border border-black/10 rounded-3xl shadow-apple-modal overflow-hidden z-10 text-black">
+        <div className="flex items-center px-4 py-3 border-b border-neutral-100 gap-3 bg-white">
+          <Search className="w-5 h-5 text-black" />
           <input
             type="text"
-            placeholder="Type a Mission Control command or press ESC to dismiss..."
+            placeholder="Search WhyCode4U sections or press ESC to dismiss..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none font-mono"
+            className="w-full bg-transparent text-sm text-black placeholder-neutral-400 focus:outline-none"
             autoFocus
           />
-          <kbd className="px-2 py-0.5 text-xs font-mono bg-space-800 text-slate-400 rounded border border-space-700">ESC</kbd>
+          <kbd className="px-2 py-0.5 text-[11px] font-mono bg-neutral-100 text-neutral-500 rounded-lg border border-neutral-200">ESC</kbd>
         </div>
 
         <div className="py-2 max-h-72 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="p-4 text-center text-sm text-slate-500 font-mono">No matching commands found.</div>
+            <div className="p-4 text-center text-xs text-neutral-400">No matching sections found.</div>
           ) : (
             filtered.map((item, idx) => {
               const Icon = item.icon;
@@ -86,21 +80,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ onNavigate, onTr
                     item.action();
                     setIsOpen(false);
                   }}
-                  className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-space-800/80 text-left text-sm text-slate-200 transition-colors cursor-pointer group"
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-neutral-50 text-left text-sm text-black transition-colors cursor-pointer group"
                 >
-                  <Icon className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-                  <span className="font-mono">{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-neutral-100 border border-neutral-200 flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-black">{item.label}</div>
+                      <div className="text-[11px] text-neutral-500">{item.description}</div>
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-neutral-400 group-hover:text-black font-semibold">Open →</span>
                 </button>
               );
             })
           )}
         </div>
-
-        {konamiUnlocked && (
-          <div className="p-2 bg-gradient-to-r from-amber-500 to-cyan-500 text-space-950 font-bold text-center text-xs font-mono animate-bounce">
-            🌟 KONAMI EASTER EGG UNLOCKED: MISSION STATUS: OVERCLOCK 🌟
-          </div>
-        )}
       </div>
     </div>
   );

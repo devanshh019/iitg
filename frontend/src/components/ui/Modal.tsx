@@ -38,22 +38,22 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Apple style blurred scrim */}
       <div
-        className="fixed inset-0 bg-space-950/80 backdrop-blur-md transition-opacity duration-200"
+        className="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-200"
         onClick={onClose}
       />
       <div
-        className={`relative w-full ${maxWidthClasses} bg-space-900 border border-space-700/80 rounded-2xl shadow-glass overflow-hidden z-10 transform transition-all duration-200 scale-100`}
+        className={`relative w-full ${maxWidthClasses} bg-white border border-black/10 rounded-3xl shadow-apple-modal overflow-hidden z-10 transform transition-all duration-200 scale-100 text-black`}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-space-800">
-          <h3 className="text-lg font-semibold text-slate-100 tracking-tight font-mono">{title}</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-white">
+          <h3 className="text-base font-bold text-black tracking-tight">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-space-800 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div>
+        <div className="p-6 max-h-[82vh] overflow-y-auto">{children}</div>
       </div>
     </div>
   );

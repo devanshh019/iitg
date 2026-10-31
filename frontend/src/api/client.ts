@@ -51,6 +51,10 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
         } catch (_) {
           errDetail = await res.text();
         }
+        // Do not retry 4xx client errors (400, 401, 403, 404, etc.)
+        if (res.status >= 400 && res.status < 500) {
+          throw new Error(errDetail);
+        }
         throw new Error(errDetail);
       }
       return (await res.json()) as T;

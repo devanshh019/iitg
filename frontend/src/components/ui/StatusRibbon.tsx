@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Circle, Rocket, Shield, QrCode, Award, Terminal } from 'lucide-react';
+import { Check, Shield, QrCode, Rocket, CheckCircle2, Award, Terminal } from 'lucide-react';
 
 export type MissionStage = 'registered' | 'squad_locked' | 'boarded' | 'launched' | 'reviewed' | 'debrief';
 
@@ -8,12 +8,11 @@ interface StatusRibbonProps {
 }
 
 const STAGES: Array<{ key: MissionStage; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { key: 'registered', label: 'Registered', icon: Terminal },
-  { key: 'squad_locked', label: 'Squad Locked', icon: Shield },
-  { key: 'boarded', label: 'Boarded', icon: QrCode },
-  { key: 'launched', label: 'Launched', icon: Rocket },
-  { key: 'reviewed', label: 'Reviewed', icon: CheckCircle2 },
-  { key: 'debrief', label: 'Debrief', icon: Award }
+  { key: 'registered', label: '1. Register', icon: Terminal },
+  { key: 'squad_locked', label: '2. Team Ready', icon: Shield },
+  { key: 'boarded', label: '3. Checked In', icon: QrCode },
+  { key: 'launched', label: '4. Submitted', icon: Rocket },
+  { key: 'reviewed', label: '5. Reviewed', icon: CheckCircle2 }
 ];
 
 export const StatusRibbon: React.FC<StatusRibbonProps> = ({ currentStage }) => {
@@ -21,36 +20,43 @@ export const StatusRibbon: React.FC<StatusRibbonProps> = ({ currentStage }) => {
   const activeIdx = currentIndex === -1 ? 0 : currentIndex;
 
   return (
-    <div className="w-full bg-space-900/90 backdrop-blur-md border border-space-800 rounded-xl p-3 my-4 overflow-x-auto shadow-glass">
-      <div className="flex items-center justify-between min-w-[550px] relative">
-        {/* Connecting progress track */}
-        <div className="absolute top-1/2 left-6 right-6 h-0.5 bg-space-800 -translate-y-1/2 -z-0" />
+    <div className="w-full bg-white border border-black/[0.08] rounded-2xl p-4 my-3 overflow-x-auto shadow-apple-sm">
+      <div className="flex items-center justify-between min-w-[460px] relative px-4">
+        {/* Track line */}
+        <div className="absolute top-4 left-8 right-8 h-[2px] bg-neutral-200 -z-0" />
         <div
-          className="absolute top-1/2 left-6 h-0.5 bg-gradient-to-r from-cyan-500 to-amber-500 -translate-y-1/2 -z-0 transition-all duration-500"
-          style={{ width: `${(activeIdx / (STAGES.length - 1)) * 90}%` }}
+          className="absolute top-4 left-8 h-[2px] bg-black -z-0 transition-all duration-300"
+          style={{ width: `${(activeIdx / (STAGES.length - 1)) * 88}%` }}
         />
 
         {STAGES.map((stage, idx) => {
           const isDone = idx < activeIdx;
           const isCurrent = idx === activeIdx;
-          const Icon = stage.icon;
 
           return (
             <div key={stage.key} className="flex flex-col items-center z-10">
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                   isDone
-                    ? 'bg-cyan-500 text-space-950 shadow-glow-cyan'
+                    ? 'bg-black text-white shadow-sm'
                     : isCurrent
-                    ? 'bg-amber-500 text-space-950 ring-4 ring-amber-500/30 animate-pulse'
-                    : 'bg-space-800 text-slate-500 border border-space-700'
+                    ? 'bg-black text-white ring-4 ring-neutral-200 shadow-sm'
+                    : 'bg-white text-neutral-400 border border-neutral-300'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                {isDone ? (
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                ) : (
+                  <span className="text-xs font-semibold">{idx + 1}</span>
+                )}
               </div>
               <span
-                className={`mt-1.5 text-xs font-mono tracking-tight font-medium ${
-                  isCurrent ? 'text-amber-400 font-bold' : isDone ? 'text-cyan-400' : 'text-slate-500'
+                className={`mt-1.5 text-xs tracking-tight ${
+                  isCurrent
+                    ? 'text-black font-bold'
+                    : isDone
+                    ? 'text-neutral-700 font-medium'
+                    : 'text-neutral-400'
                 }`}
               >
                 {stage.label}

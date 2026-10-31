@@ -4,40 +4,41 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        space: {
-          950: '#070B14',
-          900: '#0B1220',
-          850: '#0E1726',
-          800: '#0F172A',
-          700: '#1E293B',
-          600: '#334155',
-          500: '#64748B'
-        },
-        cyan: {
-          400: '#22D3EE',
-          500: '#06B6D4',
-          600: '#0891B2',
-          glow: 'rgba(6, 182, 212, 0.25)'
-        },
-        amber: {
-          400: '#FBBF24',
-          500: '#F59E0B',
-          600: '#D97706',
-          glow: 'rgba(245, 158, 11, 0.25)'
+        // Pure Apple Black & White Monochromatic Palette
+        black: '#000000',
+        white: '#FFFFFF',
+        apple: {
+          bg: '#FBFBFD',
+          card: '#FFFFFF',
+          subtle: '#F5F5F7',
+          hover: '#E8E8ED',
+          border: 'rgba(0, 0, 0, 0.08)',
+          'border-strong': 'rgba(0, 0, 0, 0.16)',
+          dark: '#1D1D1F',
+          muted: '#86868B',
+          secondary: '#6E6E73'
         }
       },
       fontFamily: {
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'San Francisco', 'Segoe UI', 'Roboto', 'Helvetica', 'sans-serif']
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Display"',
+          '"SF Pro Text"',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif'
+        ]
       },
       boxShadow: {
-        'glow-cyan': '0 0 20px -2px rgba(6, 182, 212, 0.35)',
-        'glow-amber': '0 0 20px -2px rgba(245, 158, 11, 0.35)',
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
+        'apple-sm': '0 1px 2px rgba(0, 0, 0, 0.04)',
+        'apple-card': '0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02)',
+        'apple-lift': '0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)',
+        'apple-modal': '0 24px 60px rgba(0, 0, 0, 0.15)'
       }
     },
   },

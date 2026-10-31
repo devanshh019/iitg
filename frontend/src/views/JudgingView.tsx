@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Award, CheckCircle2, AlertTriangle, Eye, EyeOff, BarChart2, MessageSquare } from 'lucide-react';
+import { Shield, Award, CheckCircle2, AlertTriangle, Eye, EyeOff, BarChart2, Star } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -86,16 +86,16 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5 max-w-5xl mx-auto">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-stone-200/90 shadow-soft">
         <div>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-cyan-400" />
-            <h1 className="text-2xl font-bold font-mono text-white tracking-tight">Flight Review & Scoring</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <Award className="w-5 h-5 text-maroon-700" />
+            <h1 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">Judging Desk (Flight Review)</h1>
           </div>
-          <p className="text-xs font-mono text-slate-400 mt-1">
-            Rubric-weighted scoring with per-judge z-score normalization and outlier detection.
+          <p className="text-xs sm:text-sm text-stone-500">
+            Score assigned teams with the rubric. Scores are normalized to balance strict and lenient judges.
           </p>
         </div>
 
@@ -104,66 +104,66 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
             variant={blindMode ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setBlindMode(!blindMode)}
-            className="gap-2"
+            className="gap-1.5 text-xs"
           >
             {blindMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span>Blind Mode: {blindMode ? 'ON' : 'OFF'}</span>
+            <span>Blind Review: {blindMode ? 'ON' : 'OFF'}</span>
           </Button>
         </div>
       </div>
 
       {/* Assigned Squads for Review */}
       {assignments.length > 0 && (
-        <Card glow="cyan">
+        <Card className="bg-white rounded-3xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-cyan-400" />
-              <h3 className="font-mono font-bold text-sm text-slate-200 uppercase tracking-wider">
-                My Flight Review Queue
+              <Star className="w-4 h-4 text-maroon-700" />
+              <h3 className="font-bold text-sm text-stone-900 uppercase tracking-wide">
+                Teams Assigned to You
               </h3>
             </div>
-            <Badge variant="cyan">{assignments.length} SQUADS ASSIGNED</Badge>
+            <Badge variant="maroon">{assignments.length} Teams to Review</Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {assignments.map((asgn, idx) => (
               <div
                 key={idx}
-                className={`p-4 rounded-xl border flex flex-col justify-between ${
+                className={`p-4 rounded-2xl border flex flex-col justify-between transition-all ${
                   asgn.is_conflict
-                    ? 'bg-rose-950/20 border-rose-500/40'
+                    ? 'bg-rose-50/60 border-rose-200'
                     : asgn.scores_submitted
-                    ? 'bg-emerald-950/20 border-emerald-500/40'
-                    : 'bg-space-950/60 border-space-800'
+                    ? 'bg-emerald-50/60 border-emerald-200'
+                    : 'bg-stone-50 border-stone-200/80 hover:border-maroon-300'
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-mono font-bold text-white">{asgn.team_name}</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-bold text-stone-900">{asgn.team_name}</span>
                     {asgn.is_conflict ? (
-                      <Badge variant="rose" size="sm">CONFLICT</Badge>
+                      <Badge variant="rose" size="sm">Conflict Flagged</Badge>
                     ) : asgn.scores_submitted ? (
-                      <Badge variant="emerald" size="sm">SCORED</Badge>
+                      <Badge variant="emerald" size="sm">Evaluated</Badge>
                     ) : (
-                      <Badge variant="amber" size="sm">PENDING</Badge>
+                      <Badge variant="amber" size="sm">Needs Review</Badge>
                     )}
                   </div>
                   {asgn.is_conflict ? (
-                    <p className="text-xs text-rose-300 mt-1 font-mono">{asgn.conflict_reason}</p>
+                    <p className="text-xs text-rose-700 mt-1">{asgn.conflict_reason}</p>
                   ) : (
-                    <p className="text-xs text-slate-400 mt-1">Review live repo and recorded demo submission.</p>
+                    <p className="text-xs text-stone-500 mt-1">Review live repo and demo presentation.</p>
                   )}
                 </div>
 
-                <div className="mt-4 pt-2 border-t border-space-850 flex justify-end">
+                <div className="mt-4 pt-2.5 border-t border-stone-200/60 flex justify-end">
                   {!asgn.is_conflict && (
                     <Button
                       variant={asgn.scores_submitted ? 'outline' : 'primary'}
                       size="sm"
                       onClick={() => handleOpenScoring(asgn)}
-                      className="text-xs py-1"
+                      className="text-xs py-1 px-3"
                     >
-                      {asgn.scores_submitted ? 'Revise Score' : 'Score Squad'}
+                      {asgn.scores_submitted ? 'Update Score' : 'Score Team'}
                     </Button>
                   )}
                 </div>
@@ -173,55 +173,45 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
         </Card>
       )}
 
-      {/* Flight Review Standings Leaderboard (Raw vs Normalized) */}
-      <Card>
+      {/* Flight Review Standings Leaderboard */}
+      <Card className="bg-white rounded-3xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <BarChart2 className="w-5 h-5 text-amber-400" />
-            <h3 className="font-mono font-bold text-sm text-slate-200 uppercase tracking-wider">
-              Telemetry Standings: Raw vs. Z-Score Normalized
+            <BarChart2 className="w-5 h-5 text-amber-600" />
+            <h3 className="font-bold text-sm text-stone-900 uppercase tracking-wide">
+              Official Leaderboard & Standings
             </h3>
           </div>
-          <span className="text-xs font-mono text-slate-500">{leaderboard.length} entries ranked</span>
+          <span className="text-xs text-stone-400 font-medium">{leaderboard.length} teams ranked</span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
-            <thead className="bg-space-950 border-b border-space-800 text-slate-400 uppercase">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase text-[11px] font-semibold tracking-wider">
               <tr>
                 <th className="py-3 px-4">Rank</th>
-                <th className="py-3 px-4">Squad</th>
+                <th className="py-3 px-4">Team</th>
                 <th className="py-3 px-4">Track</th>
-                <th className="py-3 px-4 text-center">Raw Avg (1-10)</th>
-                <th className="py-3 px-4 text-center">Normalized (0-100)</th>
-                <th className="py-3 px-4 text-center">Reviews</th>
-                <th className="py-3 px-4 text-center">Outlier Flag</th>
+                <th className="py-3 px-4 text-center">Raw Avg (1–10)</th>
+                <th className="py-3 px-4 text-center font-bold text-maroon-800">Normalized (0–100)</th>
+                <th className="py-3 px-4 text-center">Judges</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-space-850 text-slate-200">
+            <tbody className="divide-y divide-stone-100 text-stone-700">
               {leaderboard.map((row) => (
-                <tr key={row.team_id} className="hover:bg-space-850/50 transition-colors">
+                <tr key={row.team_id} className="hover:bg-stone-50/70 transition-colors">
                   <td className="py-3 px-4">
-                    <span className={`font-bold ${row.rank <= 3 ? 'text-amber-400 text-sm' : 'text-slate-400'}`}>
+                    <span className={`font-bold font-mono ${row.rank <= 3 ? 'text-maroon-700 text-sm' : 'text-stone-400'}`}>
                       #{row.rank}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-semibold text-white">{row.team_name}</td>
-                  <td className="py-3 px-4 text-cyan-400">{row.track || 'General'}</td>
-                  <td className="py-3 px-4 text-center text-slate-300 font-bold">{row.raw_average.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-center text-cyan-300 font-bold text-sm">
+                  <td className="py-3 px-4 font-bold text-stone-900">{row.team_name}</td>
+                  <td className="py-3 px-4 text-stone-600">{row.track || 'General'}</td>
+                  <td className="py-3 px-4 text-center text-stone-700 font-mono font-medium">{row.raw_average.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-center text-maroon-800 font-mono font-bold text-sm">
                     {row.normalized_score.toFixed(1)}
                   </td>
-                  <td className="py-3 px-4 text-center text-slate-400">{row.review_count}</td>
-                  <td className="py-3 px-4 text-center">
-                    {row.outlier_flag ? (
-                      <span className="text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-950 border border-rose-500/40">
-                        OUTLIER
-                      </span>
-                    ) : (
-                      <span className="text-slate-600">—</span>
-                    )}
-                  </td>
+                  <td className="py-3 px-4 text-center text-stone-500 font-mono">{row.review_count}</td>
                 </tr>
               ))}
             </tbody>
@@ -238,10 +228,10 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
         <form onSubmit={handleSubmitScores} className="space-y-4">
           <div className="space-y-4">
             {rubric?.criteria?.map((crit: any) => (
-              <div key={crit.id} className="p-3 bg-space-950 border border-space-800 rounded-xl">
+              <div key={crit.id} className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-mono font-bold text-white">{crit.name}</span>
-                  <span className="text-xs font-mono text-cyan-400 font-bold">
+                  <span className="text-xs font-semibold text-stone-900">{crit.name}</span>
+                  <span className="text-xs font-mono font-bold text-maroon-700">
                     Score: {scores[crit.id] || 8.0} / 10
                   </span>
                 </div>
@@ -252,11 +242,11 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
                   step="0.5"
                   value={scores[crit.id] || 8.0}
                   onChange={(e) => setScores({ ...scores, [crit.id]: parseFloat(e.target.value) })}
-                  className="w-full accent-cyan-500 cursor-pointer"
+                  className="w-full accent-maroon-700 cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                <div className="flex justify-between text-[10px] text-stone-400 mt-1">
                   <span>1.0 (Needs work)</span>
-                  <span>5.0 (Prototype)</span>
+                  <span>5.0 (Average)</span>
                   <span>10.0 (Exceptional)</span>
                 </div>
               </div>
@@ -264,15 +254,15 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
           </div>
 
           <div>
-            <label className="text-xs font-mono text-slate-300 block mb-1">
-              Flight Review Comment (Required on revision updates)
+            <label className="text-xs font-semibold text-stone-700 block mb-1 uppercase tracking-wider">
+              Feedback for the Team
             </label>
             <textarea
               rows={3}
-              placeholder="Provide constructive telemetry, feedback, or justification for score changes..."
+              placeholder="What impressed you? What could be improved?"
               value={scoreComment}
               onChange={(e) => setScoreComment(e.target.value)}
-              className="w-full bg-space-950 border border-space-800 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-maroon-500/20 focus:border-maroon-600"
             />
           </div>
 
@@ -281,7 +271,7 @@ export const JudgingView: React.FC<JudgingViewProps> = ({ eventId = 'apollo-24' 
               Cancel
             </Button>
             <Button variant="primary" size="sm" type="submit" isLoading={loading}>
-              Submit Flight Review
+              Submit Evaluation
             </Button>
           </div>
         </form>

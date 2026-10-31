@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Calendar, Clock, AlertTriangle, ArrowRight, CheckCircle2, Shield,
-  QrCode, Rocket, Sparkles, Download, Smile, Flame
+  QrCode, Rocket, Sparkles, Download, Utensils, Bed, FileCode2, Users, X
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { StatusRibbon } from '../components/ui/StatusRibbon';
 import { apiFetch } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 interface CrewPortalViewProps {
   onNavigate: (view: string) => void;
@@ -16,13 +17,13 @@ interface CrewPortalViewProps {
 }
 
 export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, eventId = 'apollo-24' }) => {
+  const { user } = useAuth();
   const [missionData, setMissionData] = useState<any>(null);
   const [boardingPass, setBoardingPass] = useState<any>(null);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [showQR, setShowQR] = useState(false);
-  const [moodScore, setMoodScore] = useState(4);
-  const [moodNote, setMoodNote] = useState('');
-  const [pulseSubmitted, setPulseSubmitted] = useState(false);
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [activePassTab, setActivePassTab] = useState<'gate' | 'meals'>('gate');
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<string>('Lunch');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,21 +33,18 @@ export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, even
   const loadPortalData = async () => {
     try {
       setLoading(true);
-      // Fetch event by slug
       const event = await apiFetch(`/events/by-slug/${eventId}`);
       setMissionData(event);
 
-      // Fetch announcements
-      const anns = await apiFetch(`/events/${event.id}/announcements`);
-      setAnnouncements(anns);
-
-      // Fetch boarding pass
       try {
         const pass = await apiFetch(`/events/${event.id}/boarding/pass`);
         setBoardingPass(pass);
-      } catch (e) {
-        // If not authenticated or registered, fallback gracefully
-      }
+      } catch (e) {}
+
+      try {
+        const toks = await apiFetch(`/events/${event.id}/fun/tokens`);
+        setTokens(toks);
+      } catch (e) {}
     } catch (err) {
       console.error('Failed to load mission data:', err);
     } finally {
@@ -54,306 +52,223 @@ export const CrewPortalView: React.FC<CrewPortalViewProps> = ({ onNavigate, even
     }
   };
 
-  const handleAcknowledge = async (annId: string) => {
-    if (!missionData) return;
-    try {
-      await apiFetch(`/events/${missionData.id}/announcements/${annId}/acknowledge`, { method: 'POST' });
-      setAnnouncements(prev => prev.map(a => a.id === annId ? { ...a, acknowledged: true } : a));
-    } catch (e) {}
-  };
-
-  const submitMoodPulse = async () => {
-    if (!missionData) return;
-    try {
-      await apiFetch(`/events/${missionData.id}/fun/mood-pulse?mood_score=${moodScore}&energy_level=high&note=${encodeURIComponent(moodNote)}`, {
-        method: 'POST'
-      });
-      setPulseSubmitted(true);
-    } catch (e) {}
-  };
-
-  const downloadICS = () => {
-    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//HACKOS//Mission Control//EN\nBEGIN:VEVENT\nSUMMARY:${missionData?.title || 'Hackathon'}\nDESCRIPTION:${missionData?.description || ''}\nSTATUS:CONFIRMED\nEND:VEVENT\nEND:VCALENDAR`;
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', 'mission-schedule.ics');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Determine stage and next action
   const currentStage = boardingPass?.status || 'registered';
 
-  const getNextAction = () => {
-    if (currentStage === 'registered') {
-      return {
-        label: 'Assemble or Join a Squad',
-        desc: 'You are registered for flight. Next milestone is squad locking.',
-        btnText: 'Open Squad Hub',
-        action: () => onNavigate('squads'),
-        icon: Shield
-      };
-    }
-    if (currentStage === 'squad_locked') {
-      return {
-        label: 'Ready for Boarding Gate',
-        desc: 'Show your Ed25519 boarding pass to ground crew at Main Gate.',
-        btnText: 'View Boarding Pass',
-        action: () => setShowQR(true),
-        icon: QrCode
-      };
-    }
-    if (currentStage === 'boarded') {
-      return {
-        label: 'Prepare Project Launch',
-        desc: 'Flight deck is open. Submit project drafts with SHA-256 revisions.',
-        btnText: 'Go to Launch Desk',
-        action: () => onNavigate('launch'),
-        icon: Rocket
-      };
-    }
-    return {
-      label: 'Flight Review Active',
-      desc: 'Judges are reviewing launches. Telemetry leaderboard updating.',
-      btnText: 'Check Flight Review',
-      action: () => onNavigate('judging'),
-      icon: CheckCircle2
-    };
-  };
-
-  const nextAction = getNextAction();
-  const NextIcon = nextAction.icon;
-
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Mission Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-space-900 to-space-850 p-6 rounded-2xl border border-space-800 shadow-glass">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="cyan">MISSION ACTIVE</Badge>
-            <span className="text-xs font-mono text-slate-400">SLUG: {missionData?.slug || 'apollo-24'}</span>
+    <div className="space-y-5 max-w-4xl mx-auto text-black">
+      {/* Top Banner Card */}
+      <div className="bg-white p-5 sm:p-7 rounded-3xl border border-black/[0.08] shadow-apple-card">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-black">
+                Hackathon Live
+              </span>
+              <span className="text-neutral-300">•</span>
+              <span className="text-xs text-neutral-500 font-medium">WhyCode4U Apollo 24</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-black tracking-tight">
+              {boardingPass?.participant_name ? `Welcome, ${boardingPass.participant_name}` : 'Welcome, Hacker!'}
+            </h1>
+            <p className="text-xs sm:text-sm text-neutral-500 mt-1 max-w-xl">
+              24-Hour Innovation Sprint. Build, submit, and pitch your prototype.
+            </p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold font-mono text-white tracking-tight">
-            {missionData?.title || 'APOLLO 24: Deep Space Orbital Hackathon'}
-          </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl">{missionData?.description}</p>
-        </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={downloadICS} className="gap-2">
-            <Download className="w-4 h-4" />
-            <span>Export ICS</span>
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => setShowQR(true)} className="gap-2">
-            <QrCode className="w-4 h-4" />
-            <span>Boarding Pass</span>
-          </Button>
+          <div className="flex items-center gap-2 pt-1 sm:pt-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setActivePassTab('meals'); setShowPassModal(true); }}
+              className="gap-1.5 text-xs rounded-xl"
+            >
+              <Utensils className="w-4 h-4 text-black" />
+              <span>Food QR</span>
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => { setActivePassTab('gate'); setShowPassModal(true); }}
+              className="gap-1.5 text-xs rounded-xl shadow-apple-sm bg-black text-white hover:bg-neutral-800"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Gate & Accom Pass</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Animated Status Ribbon */}
+      {/* Progress Stepper Ribbon */}
       <StatusRibbon currentStage={currentStage} />
 
-      {/* Hero Now / Next Card with One Clear Action Button */}
-      <Card glow="cyan" className="bg-gradient-to-br from-space-900 via-space-900 to-cyan-950/30 border-cyan-500/30">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0">
-              <NextIcon className="w-6 h-6 text-cyan-400" />
+      {/* Quick Access Action Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div
+          onClick={() => onNavigate('problems')}
+          className="p-5 rounded-3xl bg-white border border-black/[0.08] hover:border-black/30 shadow-apple-card transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
+            <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center mb-3">
+              <FileCode2 className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono uppercase tracking-widest text-cyan-400 font-bold">NEXT DIRECTIVE</span>
-                <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              </div>
-              <h2 className="text-xl font-bold font-mono text-white mt-0.5">{nextAction.label}</h2>
-              <p className="text-sm text-slate-300 mt-1">{nextAction.desc}</p>
-            </div>
+            <h3 className="font-bold text-base text-black group-hover:text-neutral-700">Problem Statements</h3>
+            <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+              Explore organizer problem statements, rules, and select your team's track.
+            </p>
           </div>
-
-          <Button variant="primary" size="lg" onClick={nextAction.action} className="w-full md:w-auto shrink-0 gap-2">
-            <span>{nextAction.btnText}</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </Card>
-
-      {/* Split Grid: Telemetry Announcements & Timeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Mission Announcements & Challenges */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Mission Bulletins */}
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <h3 className="font-mono font-bold text-sm tracking-wider uppercase text-slate-200">Mission Bulletins</h3>
-              </div>
-              <span className="text-xs font-mono text-slate-500">{announcements.length} broadcasts</span>
-            </div>
-
-            <div className="space-y-3">
-              {announcements.map((ann, idx) => (
-                <div
-                  key={ann.id || idx}
-                  className={`p-4 rounded-xl border transition-all ${
-                    ann.priority === 'high'
-                      ? 'bg-amber-950/20 border-amber-500/30'
-                      : 'bg-space-950/60 border-space-800'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        {ann.is_pinned && <Badge variant="cyan" size="sm">PINNED</Badge>}
-                        <h4 className="font-semibold text-slate-100 text-sm">{ann.title}</h4>
-                      </div>
-                      <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{ann.content}</p>
-                    </div>
-
-                    <Button
-                      variant={ann.acknowledged ? 'secondary' : 'outline'}
-                      size="sm"
-                      onClick={() => handleAcknowledge(ann.id)}
-                      className="text-[11px] shrink-0"
-                    >
-                      {ann.acknowledged ? 'Acknowledged' : 'Acknowledge'}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Timed Reveal Problem Statements */}
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-mono font-bold text-sm tracking-wider uppercase text-slate-200">Mission Challenges & Tracks</h3>
-              <Badge variant="cyan">3 TRACKS ACTIVE</Badge>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              {[
-                { title: 'AI & Autonomous Telemetry', track: 'AI/ML', desc: 'Deploy neural models capable of zero-latency edge diagnostics in orbit.' },
-                { title: 'Fault-Tolerant Space Systems', track: 'Systems', desc: 'High availability Byzantine agreement under high radiation packet loss.' },
-                { title: 'Open Orbital Frontier', track: 'Open Track', desc: 'Breakthrough innovations expanding human capabilities beyond Earth.' }
-              ].map((prob, i) => (
-                <div key={i} className="p-3.5 bg-space-950/50 border border-space-800 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-cyan-400">{prob.track}</span>
-                    <span className="text-[10px] text-emerald-400 font-mono">REVEALED</span>
-                  </div>
-                  <h4 className="font-semibold text-sm text-slate-100 mt-1">{prob.title}</h4>
-                  <p className="text-xs text-slate-400 mt-1">{prob.desc}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <div className="mt-4 flex items-center gap-1 text-xs font-bold text-black group-hover:translate-x-1 transition-transform">
+            <span>Select Track</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </div>
         </div>
 
-        {/* Right Col: Timeline & Crew Pulse Mood */}
-        <div className="space-y-6">
-          {/* Timeline */}
-          <Card>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-cyan-400" />
-              <h3 className="font-mono font-bold text-sm tracking-wider uppercase text-slate-200">Flight Timeline</h3>
+        <div
+          onClick={() => onNavigate('squads')}
+          className="p-5 rounded-3xl bg-white border border-black/[0.08] hover:border-black/30 shadow-apple-card transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
+            <div className="w-10 h-10 rounded-2xl bg-neutral-100 text-black border border-neutral-200 flex items-center justify-center mb-3">
+              <Users className="w-5 h-5" />
             </div>
-            <div className="space-y-4 relative border-l-2 border-space-800 ml-2 pl-4">
-              {[
-                { time: 'T-00:00', title: 'Mission Ignition & Keynote', active: false },
-                { time: 'T+04:00', title: 'Squad Roster Lock Deadline', active: true },
-                { time: 'T+12:00', title: 'Midnight Orbital Pit Stop', active: false },
-                { time: 'T+20:00', title: 'Launches Final Cutoff', active: false },
-                { time: 'T+24:00', title: 'Flight Review Debrief', active: false }
-              ].map((step, idx) => (
-                <div key={idx} className="relative">
-                  <div
-                    className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${
-                      step.active ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-space-700'
-                    }`}
-                  />
-                  <span className="text-[10px] font-mono text-slate-500 block">{step.time}</span>
-                  <span className={`text-xs font-medium ${step.active ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>
-                    {step.title}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
+            <h3 className="font-bold text-base text-black group-hover:text-neutral-700">My Team</h3>
+            <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+              Form your squad of up to 4 members or share your invite link with friends.
+            </p>
+          </div>
+          <div className="mt-4 flex items-center gap-1 text-xs font-bold text-black group-hover:translate-x-1 transition-transform">
+            <span>Manage Team</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </div>
+        </div>
 
-          {/* Anonymous Crew Pulse */}
-          <Card glow="amber">
-            <div className="flex items-center gap-2 mb-2">
-              <Smile className="w-4 h-4 text-amber-400" />
-              <h3 className="font-mono font-bold text-sm text-white">Crew Pulse (Mood Telemetry)</h3>
+        <div
+          onClick={() => onNavigate('launch')}
+          className="p-5 rounded-3xl bg-white border border-black/[0.08] hover:border-black/30 shadow-apple-card transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div>
+            <div className="w-10 h-10 rounded-2xl bg-neutral-100 text-black border border-neutral-200 flex items-center justify-center mb-3">
+              <Rocket className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-400 mb-3">Anonymous telemetry sent to Mission Control organizers.</p>
-
-            {pulseSubmitted ? (
-              <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-center">
-                <span className="text-xs font-mono text-emerald-400">✨ Telemetry Pulse Logged! Thank you, Crew.</span>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex justify-between text-xs font-mono text-slate-400">
-                  <span>Battery Drained (1)</span>
-                  <span className="text-amber-400 font-bold">Orbital Velocity ({moodScore})</span>
-                  <span>Hyper (5)</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={moodScore}
-                  onChange={(e) => setMoodScore(parseInt(e.target.value))}
-                  className="w-full accent-amber-500 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  placeholder="Optional note for flight director..."
-                  value={moodNote}
-                  onChange={(e) => setMoodNote(e.target.value)}
-                  className="w-full bg-space-950 border border-space-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono"
-                />
-                <Button variant="primary" size="sm" onClick={submitMoodPulse} className="w-full">
-                  Transmit Telemetry
-                </Button>
-              </div>
-            )}
-          </Card>
+            <h3 className="font-bold text-base text-black group-hover:text-neutral-700">Submit Project</h3>
+            <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+              Submit code repo, live deployment link, and deck before strict deadline cutoff.
+            </p>
+          </div>
+          <div className="mt-4 flex items-center gap-1 text-xs font-bold text-black group-hover:translate-x-1 transition-transform">
+            <span>Submit Deliverables</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </div>
         </div>
       </div>
 
-      {/* Boarding Pass Modal */}
-      {showQR && (
+      {/* Unified Pass Modal: Gate, Accommodation & Food QR Codes */}
+      {showPassModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-space-950/80 backdrop-blur-md" onClick={() => setShowQR(false)} />
-          <div className="relative w-full max-w-sm bg-space-900 border border-cyan-500/40 rounded-2xl shadow-glow-cyan p-6 text-center z-10">
-            <Badge variant="cyan" className="mb-2">ED25519 VERIFIED PASS</Badge>
-            <h3 className="text-xl font-bold font-mono text-white mb-1">
-              {boardingPass?.participant_name || 'Astronaut'}
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">Present at any boarding station gate.</p>
-
-            <div className="bg-white p-4 rounded-xl inline-block shadow-lg my-2">
-              <QRCodeSVG
-                value={boardingPass?.token || 'HACKOS:DEMO:BOARDING:PASS:SAMPLE'}
-                size={180}
-                level="M"
-              />
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-md" onClick={() => setShowPassModal(false)} />
+          <div className="relative w-full max-w-sm bg-white border border-black/10 rounded-3xl shadow-apple-modal p-6 text-center z-10 text-black animate-fadeIn">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-bold text-black">WhyCode4U Digital Pass</span>
+              <button
+                onClick={() => setShowPassModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="mt-4 p-2 bg-space-950 border border-space-800 rounded-lg">
-              <span className="text-[10px] font-mono text-slate-500 block">MANUAL FALLBACK CODE</span>
-              <span className="font-mono text-lg font-bold text-amber-400 tracking-widest">
-                {boardingPass?.short_fallback_code || 'APOLLO-99'}
-              </span>
+            {/* Pass Tabs */}
+            <div className="bg-neutral-100 p-1 rounded-2xl flex items-center justify-between mb-4">
+              <button
+                onClick={() => setActivePassTab('gate')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  activePassTab === 'gate' ? 'bg-black text-white shadow-sm' : 'text-neutral-600'
+                }`}
+              >
+                <Bed className="w-3.5 h-3.5" />
+                <span>Gate & Stay</span>
+              </button>
+              <button
+                onClick={() => setActivePassTab('meals')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  activePassTab === 'meals' ? 'bg-black text-white shadow-sm' : 'text-neutral-600'
+                }`}
+              >
+                <Utensils className="w-3.5 h-3.5" />
+                <span>Food Passes</span>
+              </button>
             </div>
 
-            <Button variant="secondary" size="sm" onClick={() => setShowQR(false)} className="w-full mt-4">
-              Close Pass
+            {activePassTab === 'gate' ? (
+              <div>
+                <h3 className="text-base font-bold text-black mb-0.5">
+                  {boardingPass?.participant_name || 'Hacker'}
+                </h3>
+                <p className="text-[11px] text-neutral-500 mb-3">
+                  Present at Entrance Gate or Accommodation Check-in Desk.
+                </p>
+
+                <div className="bg-neutral-50 p-4 rounded-3xl inline-block border border-neutral-200 shadow-inner my-1">
+                  <QRCodeSVG
+                    value={boardingPass?.token || 'WHYCODE4U:GATE:PASS:SAMPLE'}
+                    size={170}
+                    level="M"
+                  />
+                </div>
+
+                <div className="mt-3 p-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl">
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 block tracking-wider">
+                    Backup 6-Digit Code
+                  </span>
+                  <span className="font-mono text-base font-bold text-black tracking-widest block mt-0.5">
+                    {boardingPass?.short_fallback_code || 'APOLLO-99'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-base font-bold text-black mb-0.5">Food & Catering Vouchers</h3>
+                <p className="text-[11px] text-neutral-500 mb-3">
+                  Select a meal to display its one-time scannable QR pass.
+                </p>
+
+                <div className="flex gap-1.5 mb-3">
+                  {['Breakfast', 'Lunch', 'Dinner'].map(meal => (
+                    <button
+                      key={meal}
+                      onClick={() => setSelectedMeal(meal)}
+                      className={`flex-1 py-1 text-xs font-bold rounded-xl transition-all border ${
+                        selectedMeal === meal
+                          ? 'bg-black text-white border-black'
+                          : 'bg-neutral-50 text-neutral-700 border-neutral-200'
+                      }`}
+                    >
+                      {meal}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-neutral-50 p-4 rounded-3xl inline-block border border-neutral-200 shadow-inner my-1">
+                  <QRCodeSVG
+                    value={`WHYCODE4U:MEAL:${selectedMeal.toUpperCase()}:${boardingPass?.short_fallback_code || 'TKN'}`}
+                    size={170}
+                    level="M"
+                  />
+                </div>
+
+                <div className="mt-2 text-xs font-bold text-black">
+                  Valid for: {selectedMeal} Service
+                </div>
+              </div>
+            )}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowPassModal(false)}
+              className="w-full mt-4 rounded-xl"
+            >
+              Done
             </Button>
           </div>
         </div>

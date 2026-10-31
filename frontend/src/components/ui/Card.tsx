@@ -1,31 +1,23 @@
 import React from 'react';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  glow?: 'cyan' | 'amber' | 'none';
   variant?: 'default' | 'glass' | 'subtle';
 }
 
 export const Card: React.FC<CardProps> = ({
   children,
-  glow = 'none',
-  variant = 'glass',
+  variant = 'default',
   className = '',
   ...props
 }) => {
-  const glowClass = {
-    cyan: 'border-cyan-500/30 shadow-glow-cyan',
-    amber: 'border-amber-500/30 shadow-glow-amber',
-    none: 'border-space-800'
-  }[glow];
-
   const variantClass = {
-    glass: 'bg-space-900/80 backdrop-blur-xl border',
-    default: 'bg-space-900 border',
-    subtle: 'bg-space-950/60 border border-space-850'
+    glass: 'bg-white/95 backdrop-blur-md border border-black/[0.08] shadow-[0_2px_12px_rgba(0,0,0,0.03)]',
+    default: 'bg-white border border-black/[0.08] shadow-[0_2px_8px_rgba(0,0,0,0.04)]',
+    subtle: 'bg-neutral-50/80 border border-black/[0.06]'
   }[variant];
 
   return (
-    <div className={`rounded-xl p-5 ${variantClass} ${glowClass} ${className}`} {...props}>
+    <div className={`rounded-2xl p-5 text-black transition-all ${variantClass} ${className}`} {...props}>
       {children}
     </div>
   );

@@ -131,9 +131,23 @@ def run_seed():
     db.add_all([sch1, sch2, sch3])
     db.commit()
 
-    # Step 5: Register 120 Crew with 30% planted duplicates
-    print("Registering 120 crew participants (including planted duplicates)...")
+    # Step 5: Register Hacker & 120 Crew with 30% planted duplicates
+    print("Registering demo hacker and 120 crew participants (including planted duplicates)...")
     participants = []
+
+    # Dedicated Hacker Demo Account
+    hacker_user = AuthService.register_or_get_user(db, email="hacker@whycode4u.com", password="Password123!")
+    hacker_reg = ParticipantRegister(
+        name="Alex Rivera",
+        email="hacker@whycode4u.com",
+        phone="+1555010000",
+        college="Stanford Innovation Lab",
+        consent=True,
+        custom_fields={"skills": ["React", "Python", "Full-Stack"]}
+    )
+    hacker_part, _ = DedupeService.register_participant(db, event.id, hacker_reg, actor_id=organizer_user.id)
+    participants.append(hacker_part)
+
     for i in range(1, 91):  # 90 unique
         fname = random.choice(FAKE_FIRST_NAMES)
         lname = random.choice(FAKE_LAST_NAMES)
@@ -141,6 +155,9 @@ def run_seed():
         em = f"crew_{i}_{fname.lower()}@apollo.hackos.io"
         ph = f"+155501{i:04d}"
         col = random.choice(FAKE_COLLEGES)
+
+        # Ensure user account has password
+        u = AuthService.register_or_get_user(db, email=em, password="Password123!")
 
         reg = ParticipantRegister(
             name=name,

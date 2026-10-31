@@ -2,33 +2,35 @@ import React from 'react';
 
 export interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'cyan' | 'amber' | 'emerald' | 'rose' | 'purple' | 'slate';
+  variant?: 'black' | 'neutral' | 'emerald' | 'amber' | 'rose' | 'maroon' | 'cyan' | 'slate';
   size?: 'sm' | 'md';
   className?: string;
 }
 
 export const Badge: React.FC<BadgeProps> = ({
   children,
-  variant = 'cyan',
+  variant = 'black',
   size = 'md',
   className = ''
 }) => {
   const variantStyles = {
-    cyan: 'bg-cyan-950/80 text-cyan-400 border border-cyan-500/40',
-    amber: 'bg-amber-950/80 text-amber-400 border border-amber-500/40',
-    emerald: 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/40',
-    rose: 'bg-rose-950/80 text-rose-400 border border-rose-500/40',
-    purple: 'bg-purple-950/80 text-purple-400 border border-purple-500/40',
-    slate: 'bg-space-800 text-slate-300 border border-space-700'
-  }[variant];
+    black: 'bg-black text-white',
+    neutral: 'bg-neutral-100 text-neutral-900 border border-neutral-200/80',
+    maroon: 'bg-black text-white',
+    cyan: 'bg-black text-white',
+    slate: 'bg-neutral-100 text-neutral-800 border border-neutral-200',
+    emerald: 'bg-neutral-50 text-emerald-900 border border-emerald-200',
+    amber: 'bg-neutral-50 text-amber-900 border border-amber-200',
+    rose: 'bg-neutral-50 text-rose-900 border border-rose-200'
+  }[variant] || 'bg-black text-white';
 
   const sizeStyles = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-2.5 py-1 text-xs'
+    sm: 'px-2 py-0.5 text-[10px] font-semibold tracking-wide',
+    md: 'px-2.5 py-1 text-xs font-semibold tracking-wide'
   }[size];
 
   return (
-    <span className={`inline-flex items-center font-mono font-medium rounded-full ${variantStyles} ${sizeStyles} ${className}`}>
+    <span className={`inline-flex items-center rounded-full font-sans uppercase ${variantStyles} ${sizeStyles} ${className}`}>
       {children}
     </span>
   );

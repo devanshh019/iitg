@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Sparkles, Award, Shield, Moon, Sunrise, Rocket, LifeBuoy, CheckCircle2, Ticket } from 'lucide-react';
+import { Sparkles, Award, Shield, Moon, Sunrise, Rocket, LifeBuoy, CheckCircle2, Ticket, X } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -61,7 +61,7 @@ export const PassportView: React.FC<PassportViewProps> = ({ eventId = 'apollo-24
         setHelpDesc('');
       }, 1500);
     } catch (err: any) {
-      alert(err.message || 'Help ticket submission failed.');
+      alert(err.message || 'Help request failed.');
     } finally {
       setLoading(false);
     }
@@ -79,63 +79,104 @@ export const PassportView: React.FC<PassportViewProps> = ({ eventId = 'apollo-24
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5 max-w-4xl mx-auto text-black">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-black/[0.08] shadow-apple-card">
         <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <h1 className="text-2xl font-bold font-mono text-white tracking-tight">Crew Passport & Pit Stop</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="w-5 h-5 text-black" />
+            <h1 className="text-xl sm:text-2xl font-bold text-black tracking-tight">Perks & Mentor Help</h1>
           </div>
-          <p className="text-xs font-mono text-slate-400 mt-1">
-            Mission achievements, meal/swag tokens, and mentor support tickets.
+          <p className="text-xs sm:text-sm text-neutral-500">
+            Show your meal vouchers at catering, collect your swag kit, and request help from on-duty mentors.
           </p>
         </div>
 
-        <Button variant="primary" size="sm" onClick={() => setHelpModalOpen(true)} className="gap-2 shadow-glow-cyan">
+        <Button variant="primary" size="sm" onClick={() => setHelpModalOpen(true)} className="gap-2 shadow-apple-sm text-xs rounded-xl bg-black text-white hover:bg-neutral-800">
           <LifeBuoy className="w-4 h-4" />
-          <span>Mentor Pit Stop (Need Help)</span>
+          <span>Ask a Mentor for Help</span>
         </Button>
       </div>
 
-      {/* Passport Stamps & Badges */}
-      <Card glow="amber">
-        <div className="flex items-center justify-between mb-4">
+      {/* Meal & Swag Digital Vouchers */}
+      <Card className="bg-white rounded-3xl">
+        <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-400" />
-            <h3 className="font-mono font-bold text-sm text-slate-100 uppercase tracking-wider">
-              Mission Flight Passport Stamps
+            <Ticket className="w-5 h-5 text-black" />
+            <h3 className="font-bold text-sm text-black uppercase tracking-wide">
+              Your Food & Swag Vouchers
             </h3>
           </div>
-          <Badge variant="amber">
-            {passportBadges.filter(b => b.unlocked).length} / {passportBadges.length} UNLOCKED
+          <Badge variant="black">One-Time Scannable</Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {[
+            { type: 'MEAL_LUNCH', name: 'Lunch Voucher', code: 'TKN-LUNCH-941', used: true, label: 'Lunch Included' },
+            { type: 'MEAL_DINNER', name: 'Dinner Voucher', code: 'TKN-DINR-882', used: false, label: 'Dinner from 8:00 PM' },
+            { type: 'SWAG_KIT', name: 'Official Swag Bag', code: 'TKN-SWAG-104', used: false, label: 'T-Shirt & Sticker Pack' }
+          ].map((tok, idx) => (
+            <div
+              key={idx}
+              onClick={() => setSelectedToken(tok)}
+              className={`p-4 rounded-2xl border cursor-pointer hover:border-black/30 transition-all ${
+                tok.used ? 'bg-neutral-50 border-neutral-200 opacity-60' : 'bg-white border-neutral-200 shadow-apple-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-black">{tok.name}</span>
+                <Badge variant={tok.used ? 'neutral' : 'emerald'} size="sm">
+                  {tok.used ? 'Redeemed' : 'Ready'}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-neutral-500 mt-1">{tok.label}</p>
+              <div className="mt-3 flex items-center justify-between pt-2 border-t border-neutral-100">
+                <span className="font-mono text-xs text-black font-bold">{tok.code}</span>
+                <span className="text-xs text-neutral-600 font-semibold hover:text-black">Show QR →</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Achievement Badges */}
+      <Card className="bg-white rounded-3xl">
+        <div className="flex items-center justify-between mb-3.5">
+          <div className="flex items-center gap-2">
+            <Award className="w-5 h-5 text-black" />
+            <h3 className="font-bold text-sm text-black uppercase tracking-wide">
+              Your Hackathon Badges
+            </h3>
+          </div>
+          <Badge variant="neutral">
+            {passportBadges.filter(b => b.unlocked).length} / {passportBadges.length} Unlocked
           </Badge>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {passportBadges.map((badge) => {
             const Icon = getBadgeIcon(badge.key);
             return (
               <div
                 key={badge.key}
-                className={`p-4 rounded-xl border text-center transition-all ${
+                className={`p-3.5 rounded-2xl border text-center transition-all ${
                   badge.unlocked
-                    ? 'bg-space-900 border-amber-500/50 shadow-glow-amber'
-                    : 'bg-space-950/40 border-space-850 opacity-40'
+                    ? 'bg-neutral-50 border-neutral-300 shadow-sm'
+                    : 'bg-neutral-50/50 border-neutral-200/60 opacity-40'
                 }`}
               >
                 <div
-                  className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                    badge.unlocked ? 'bg-amber-500 text-space-950 shadow-md' : 'bg-space-800 text-slate-500'
+                  className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-1.5 ${
+                    badge.unlocked ? 'bg-black text-white shadow-sm' : 'bg-neutral-200 text-neutral-400'
                   }`}
                 >
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-5 h-5" />
                 </div>
-                <h4 className="font-mono font-bold text-xs text-white">{badge.title}</h4>
-                <p className="text-[10px] text-slate-400 mt-1 leading-tight">{badge.description}</p>
+                <h4 className="font-bold text-xs text-black">{badge.title}</h4>
+                <p className="text-[10px] text-neutral-500 mt-0.5 line-clamp-2">{badge.description}</p>
                 <div className="mt-2">
-                  <Badge variant={badge.unlocked ? 'amber' : 'slate'} size="sm">
-                    {badge.unlocked ? 'STAMPED' : 'LOCKED'}
+                  <Badge variant={badge.unlocked ? 'black' : 'neutral'} size="sm">
+                    {badge.unlocked ? 'Unlocked' : 'Locked'}
                   </Badge>
                 </div>
               </div>
@@ -144,90 +185,56 @@ export const PassportView: React.FC<PassportViewProps> = ({ eventId = 'apollo-24
         </div>
       </Card>
 
-      {/* Meal & Swag Tokens Section */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Ticket className="w-5 h-5 text-cyan-400" />
-            <h3 className="font-mono font-bold text-sm text-slate-100 uppercase tracking-wider">
-              One-Time Meal & Swag Tokens
-            </h3>
-          </div>
-          <Badge variant="cyan">ONE-TIME SCANNABLE</Badge>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { type: 'MEAL_LUNCH', name: 'Orbital Lunch Ration', code: 'TKN-LUNCH-941', used: true },
-            { type: 'MEAL_DINNER', name: 'Flight Dinner Ration', code: 'TKN-DINR-882', used: false },
-            { type: 'SWAG_KIT', name: 'Official Mission Swag Pack', code: 'TKN-SWAG-104', used: false }
-          ].map((tok, idx) => (
-            <div
-              key={idx}
-              onClick={() => setSelectedToken(tok)}
-              className={`p-4 rounded-xl border cursor-pointer hover:border-cyan-500/50 transition-all ${
-                tok.used ? 'bg-space-950/50 border-space-850 opacity-60' : 'bg-space-900 border-space-800'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-xs text-white">{tok.name}</span>
-                <Badge variant={tok.used ? 'slate' : 'emerald'} size="sm">
-                  {tok.used ? 'REDEEMED' : 'READY'}
-                </Badge>
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="font-mono text-sm text-amber-400 font-bold">{tok.code}</span>
-                <span className="text-[10px] text-cyan-400 font-mono">Tap for Barcode →</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
       {/* Need Help Ticket Modal */}
-      <Modal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} title="Mentor Pit Stop Request">
+      <Modal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} title="Ask a Mentor for Guidance">
         {helpSuccess ? (
-          <div className="p-6 text-center text-emerald-400 font-mono text-sm">
-            <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-emerald-400" />
-            Ticket transmitted! Available mentors notified by skill tag.
+          <div className="p-6 text-center text-black font-medium text-sm">
+            <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-black" />
+            Your question has been sent! Available mentors will come to your squad table shortly.
           </div>
         ) : (
           <form onSubmit={handleRequestHelp} className="space-y-4">
             <div>
-              <label className="text-xs font-mono text-slate-300 block mb-1">Required Mentor Skill Specialization</label>
+              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wider block mb-1.5">
+                What area do you need help with?
+              </label>
               <select
                 value={skillTag}
                 onChange={(e) => setSkillTag(e.target.value)}
-                className="w-full bg-space-950 border border-space-800 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
               >
-                <option value="AI/ML">AI & Machine Learning (PyTorch, LLMs, Agents)</option>
-                <option value="Systems">Distributed Systems & Database Reliability</option>
-                <option value="Frontend">Frontend Architecture & UI Physics</option>
-                <option value="Web3">Smart Contracts & Cryptographic Primitives</option>
-                <option value="DevOps">Cloud Infra, Docker & CI/CD Pipelines</option>
+                <option value="AI/ML">AI & Machine Learning (Models, Prompts, Python)</option>
+                <option value="Systems">Backend & Database (FastAPI, SQL, APIs)</option>
+                <option value="Frontend">Frontend UI (React, Tailwind, CSS)</option>
+                <option value="Pitch">Pitch & Presentation (Slides, Storytelling)</option>
+                <option value="DevOps">Deployments (Vercel, Docker, GitHub)</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-mono text-slate-300 block mb-1">Brief Issue Summary</label>
+              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wider block mb-1.5">
+                Brief Title
+              </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Model inference latency spiking under concurrency"
+                placeholder="e.g. Need help fixing CORS error with backend API"
                 value={helpTitle}
                 onChange={(e) => setHelpTitle(e.target.value)}
-                className="w-full bg-space-950 border border-space-800 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
               />
             </div>
 
             <div>
-              <label className="text-xs font-mono text-slate-300 block mb-1">Context / Reproduction</label>
+              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wider block mb-1.5">
+                What have you tried?
+              </label>
               <textarea
                 rows={3}
-                placeholder="Explain what you have tried and what telemetry you observe..."
+                placeholder="Briefly describe what is happening..."
                 value={helpDesc}
                 onChange={(e) => setHelpDesc(e.target.value)}
-                className="w-full bg-space-950 border border-space-800 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
               />
             </div>
 
@@ -236,7 +243,7 @@ export const PassportView: React.FC<PassportViewProps> = ({ eventId = 'apollo-24
                 Cancel
               </Button>
               <Button variant="primary" size="sm" type="submit" isLoading={loading}>
-                Dispatch Help Ticket
+                Request Mentor
               </Button>
             </div>
           </form>
@@ -247,14 +254,14 @@ export const PassportView: React.FC<PassportViewProps> = ({ eventId = 'apollo-24
       {selectedToken && (
         <Modal isOpen={!!selectedToken} onClose={() => setSelectedToken(null)} title={selectedToken.name}>
           <div className="text-center p-4">
-            <div className="bg-white p-4 rounded-2xl inline-block shadow-lg my-2">
-              <QRCodeSVG value={`HACKOS:TOKEN:${selectedToken.code}`} size={160} />
+            <div className="bg-neutral-50 p-4 rounded-3xl inline-block border border-neutral-200 my-2 shadow-inner">
+              <QRCodeSVG value={`WHYCODE4U:TOKEN:${selectedToken.code}`} size={160} />
             </div>
-            <div className="text-lg font-mono font-bold text-amber-400 mt-3 tracking-widest">
+            <div className="text-base font-mono font-bold text-black mt-2 tracking-widest">
               {selectedToken.code}
             </div>
-            <p className="text-xs font-mono text-slate-400 mt-1">
-              Present barcode at kit hangar or catering station. One-time redemption.
+            <p className="text-xs text-neutral-500 mt-1">
+              Present this barcode at the catering counter or swag desk.
             </p>
           </div>
         </Modal>

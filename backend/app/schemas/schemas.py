@@ -29,6 +29,7 @@ class RequestMagicLogin(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+    name: Optional[str] = None
     is_super_admin: bool = False
 
 
