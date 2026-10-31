@@ -259,8 +259,28 @@ def update_org_event_controls(
     if not event:
         raise HTTPException(status_code=404, detail="Hackathon arena not found under this organization.")
 
+    from datetime import datetime
     if "status" in payload:
         event.status = payload["status"]
+        if payload["status"] == "ongoing" and ("starts_at" not in payload) and (event.starts_at and event.starts_at > utcnow()):
+            event.starts_at = utcnow()
+    if "starts_at" in payload and payload["starts_at"]:
+        if isinstance(payload["starts_at"], str):
+            event.starts_at = datetime.fromisoformat(payload["starts_at"].replace("Z", "+00:00"))
+        else:
+            event.starts_at = payload["starts_at"]
+    if "submission_deadline" in payload and payload["submission_deadline"]:
+        if isinstance(payload["submission_deadline"], str):
+            event.submission_deadline = datetime.fromisoformat(payload["submission_deadline"].replace("Z", "+00:00"))
+        else:
+            event.submission_deadline = payload["submission_deadline"]
+    if "ends_at" in payload and payload["ends_at"]:
+        if isinstance(payload["ends_at"], str):
+            event.ends_at = datetime.fromisoformat(payload["ends_at"].replace("Z", "+00:00"))
+        else:
+            event.ends_at = payload["ends_at"]
+    if "grace_period_minutes" in payload and payload["grace_period_minutes"] is not None:
+        event.grace_period_minutes = int(payload["grace_period_minutes"])
     if "is_submissions_locked" in payload:
         event.is_submissions_locked = bool(payload["is_submissions_locked"])
     if "is_teams_locked" in payload:

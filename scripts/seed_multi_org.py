@@ -16,7 +16,7 @@ from sqlalchemy import select
 from backend.app.db import SessionLocal
 from backend.app.models.entities import (
     Event, User, ProblemStatement, Organization, Team, TeamMembership, Rubric, RubricCriterion,
-    JudgeAssignment, Submission, SubmissionRevision, Participant, utcnow
+    JudgeAssignment, Submission, SubmissionRevision, Participant, Announcement, utcnow
 )
 from backend.app.services.event_service import EventService
 from backend.app.services.auth_service import AuthService
@@ -145,9 +145,51 @@ def seed_multi_org():
         db.add(TeamMembership(team_id=sq2.id, participant_id=participants_list[3].id, role="member"))
         db.commit()
 
-        # Judge assignments
+        # Sample project submission for sq1
+        sub1 = Submission(
+            event_id=event.id,
+            team_id=sq1.id,
+            final_receipt_id=f"RCPT-{prefix.upper()}-8821",
+            is_late=False
+        )
+        db.add(sub1)
+        db.flush()
+        rev1 = SubmissionRevision(
+            submission_id=sub1.id,
+            revision_number=1,
+            repo_url=f"https://github.com/hackos-{prefix}/project-sentinel",
+            demo_url=f"https://{prefix}-sentinel.web.app",
+            video_url="https://youtube.com/watch?v=sample-demo",
+            deck_url=f"https://pitch.com/v/{prefix}-deck",
+            description=f"Automated fault-tolerant architecture for {ps_list[0].title}. Built with resilient decentralized agents.",
+            content_hash="7e8a9b2c3d4e5f601a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f",
+            submitter_id=participants_list[0].user_id,
+            claimed_at=utcnow(),
+            server_at=utcnow()
+        )
+        db.add(rev1)
+
+        # Judge assignments (both judges assigned to squads)
         db.add(JudgeAssignment(event_id=event.id, judge_id=j1.id, team_id=sq1.id))
+        db.add(JudgeAssignment(event_id=event.id, judge_id=j1.id, team_id=sq2.id))
+        db.add(JudgeAssignment(event_id=event.id, judge_id=j2.id, team_id=sq1.id))
         db.add(JudgeAssignment(event_id=event.id, judge_id=j2.id, team_id=sq2.id))
+
+        # Seed Announcements
+        db.add(Announcement(
+            event_id=event.id,
+            title="Official Arena Kickoff & Track Challenges Revealed",
+            content=f"Welcome to {event.title}! All challenge problem statements are officially unsealed. Review your deliverables and select your track before the countdown deadline.",
+            priority="urgent",
+            is_pinned=True
+        ))
+        db.add(Announcement(
+            event_id=event.id,
+            title="Mentor Office Hours & Flight Review Guidelines",
+            content="Jury flight review assignments are live. Technical mentors are on voice channels to assist with architecture and deployment hurdles.",
+            priority="normal",
+            is_pinned=False
+        ))
         db.commit()
 
     # Seed Organizations

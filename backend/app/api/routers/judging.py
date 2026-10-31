@@ -60,11 +60,20 @@ def get_judge_assignments(
         query = query.filter_by(judge_id=current_user.id)
     assignments = db.execute(query).scalars().all()
 
+    from backend.app.models.entities import Submission, SubmissionRevision
     results = []
     for a in assignments:
         team = db.execute(select(Team).filter_by(id=a.team_id)).scalars().first()
         judge_user = db.execute(select(User).filter_by(id=a.judge_id)).scalars().first()
         judge_email = decrypt_field(judge_user.email_enc) if judge_user else "Unknown Judge"
+
+        sub = db.execute(select(Submission).filter_by(event_id=event_id, team_id=a.team_id)).scalars().first()
+        latest_rev = None
+        if sub:
+            latest_rev = db.execute(
+                select(SubmissionRevision).filter_by(submission_id=sub.id).order_by(SubmissionRevision.revision_number.desc())
+            ).scalars().first()
+
         results.append({
             "assignment_id": a.id,
             "judge_id": a.judge_id,
@@ -72,10 +81,26 @@ def get_judge_assignments(
             "team_id": a.team_id,
             "team_name": team.name if team else "Unknown",
             "track": team.track if team else "General",
+            "problem_statement_title": team.problem_statement.title if (team and team.problem_statement) else None,
             "is_conflict": a.is_conflict,
             "conflict_reason": a.conflict_reason,
             "scores_submitted": len(a.scores) > 0,
-            "assigned_at": a.created_at
+            "scores": [
+                {
+                    "criterion_id": s.criterion_id,
+                    "score": s.score,
+                    "comments": s.comments
+                } for s in a.scores
+            ],
+            "submission": {
+                "repo_url": latest_rev.repo_url if latest_rev else None,
+                "demo_url": latest_rev.demo_url if latest_rev else None,
+                "video_url": latest_rev.video_url if latest_rev else None,
+                "deck_url": latest_rev.deck_url if latest_rev else None,
+                "description": latest_rev.description if latest_rev else None,
+                "is_late": sub.is_late if sub else False
+            } if sub else None,
+            "assigned_at": None
         })
     return results
 

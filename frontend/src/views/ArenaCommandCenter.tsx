@@ -37,6 +37,14 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<any | null>(null);
   const [scanningActive, setScanningActive] = useState(false);
+  const [cameraScanner, setCameraScanner] = useState<any | null>(null);
+
+  // Timer & Schedule
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleStartsAt, setScheduleStartsAt] = useState('');
+  const [scheduleDeadline, setScheduleDeadline] = useState('');
+  const [scheduleStatus, setScheduleStatus] = useState('ongoing');
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   // Search & Filter
   const [partSearch, setPartSearch] = useState('');
@@ -89,6 +97,93 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
   const showNotification = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => setActionNotice(null), 4000);
+  };
+
+  const handleMakeLive = async () => {
+    try {
+      const nowIso = new Date().toISOString();
+      await apiFetch<any>(`/events/${eventId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'ongoing',
+          starts_at: nowIso
+        })
+      });
+      showNotification(`Arena "${arena.title}" is now officially LIVE! Kickoff timer started.`);
+      await loadAllArenaData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to make live');
+    }
+  };
+
+  const handleOpenScheduleModal = () => {
+    setShowScheduleModal(true);
+    setScheduleStatus(arena.status || 'ongoing');
+    if (arena.starts_at) {
+      setScheduleStartsAt(new Date(arena.starts_at).toISOString().slice(0, 16));
+    } else {
+      setScheduleStartsAt(new Date().toISOString().slice(0, 16));
+    }
+    if (arena.submission_deadline) {
+      setScheduleDeadline(new Date(arena.submission_deadline).toISOString().slice(0, 16));
+    } else {
+      const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      setScheduleDeadline(d.toISOString().slice(0, 16));
+    }
+  };
+
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingSchedule(true);
+      await apiFetch<any>(`/events/${eventId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: scheduleStatus,
+          starts_at: scheduleStartsAt ? new Date(scheduleStartsAt).toISOString() : undefined,
+          submission_deadline: scheduleDeadline ? new Date(scheduleDeadline).toISOString() : undefined
+        })
+      });
+      showNotification(`Schedule and timer updated successfully!`);
+      setShowScheduleModal(false);
+      await loadAllArenaData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update schedule');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const toggleCameraScanner = () => {
+    if (scanningActive) {
+      if (cameraScanner) {
+        try { cameraScanner.clear(); } catch (e) {}
+      }
+      setScanningActive(false);
+      setCameraScanner(null);
+    } else {
+      setScanningActive(true);
+      setTimeout(() => {
+        try {
+          const scanner = new Html5QrcodeScanner(
+            'reader-scanner',
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            /* verbose= */ false
+          );
+          scanner.render(
+            (decodedText: string) => {
+              handleScanOrCode(decodedText);
+            },
+            (error: any) => {
+              // scanning frame error (normal during search)
+            }
+          );
+          setCameraScanner(scanner);
+        } catch (e) {
+          console.error('Camera init error', e);
+        }
+      }, 100);
+    }
   };
 
   // 1. QR Attendance & Manual Scan
@@ -292,14 +387,36 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
           </div>
 
           {/* Quick Metrics Pill */}
-          <div className="flex items-center gap-2 self-start sm:self-center">
-            <div className="p-2.5 bg-neutral-50 rounded-2xl border border-neutral-200 text-center min-w-[90px]">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+            {arena.status !== 'ongoing' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleMakeLive}
+                className="gap-1.5 rounded-xl text-xs py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm"
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                <span>Kickoff Live</span>
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenScheduleModal}
+              className="gap-1.5 rounded-xl text-xs py-2 px-3 cursor-pointer"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Timer & Schedule</span>
+            </Button>
+
+            <div className="p-2.5 bg-neutral-50 rounded-2xl border border-neutral-200 text-center min-w-[85px]">
               <div className="text-[9px] uppercase font-bold text-neutral-400">Checked In</div>
               <div className="text-base font-mono font-bold text-black">
                 {boardedCount} / {participants.length}
               </div>
             </div>
-            <div className="p-2.5 bg-neutral-50 rounded-2xl border border-neutral-200 text-center min-w-[90px]">
+            <div className="p-2.5 bg-neutral-50 rounded-2xl border border-neutral-200 text-center min-w-[85px]">
               <div className="text-[9px] uppercase font-bold text-neutral-400">Squads</div>
               <div className="text-base font-mono font-bold text-black">{squads.length}</div>
             </div>
@@ -353,15 +470,48 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Scan Input & Scanner */}
           <div className="md:col-span-2 bg-white p-6 rounded-3xl border border-black/[0.08] shadow-apple-card space-y-5">
-            <div>
-              <h2 className="text-lg font-bold text-black flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-black" />
-                Physical Check-In & Gate Scanner
-              </h2>
-              <p className="text-xs text-neutral-500 mt-1">
-                Scan attendee cryptographic Ed25519 QR passes or input the 6-character short fallback code.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                  <QrCode className="w-5 h-5 text-black" />
+                  Physical Check-In & Gate Scanner
+                </h2>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Scan attendee cryptographic Ed25519 QR passes or input the 6-character short fallback code.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleCameraScanner}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
+                  scanningActive
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-black hover:bg-neutral-800 text-white'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>{scanningActive ? 'Stop Scanner' : 'Launch Camera Scanner'}</span>
+              </button>
             </div>
+
+            {/* Live Camera Scanner Viewport */}
+            {scanningActive && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="p-5 bg-neutral-900 rounded-2xl flex flex-col items-center justify-center space-y-3 overflow-hidden text-white border border-black"
+              >
+                <div className="text-xs font-semibold flex items-center gap-2 text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Camera Active — Point at Attendee Pass QR</span>
+                </div>
+                <div id="reader-scanner" className="w-full max-w-sm rounded-xl overflow-hidden bg-black text-white" />
+                <p className="text-[11px] text-neutral-400 font-mono">
+                  Auto-detects Ed25519 pass payloads and marks attendance in &lt;100ms.
+                </p>
+              </motion.div>
+            )}
 
             {/* Manual Code Fallback Form */}
             <form
@@ -379,12 +529,37 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
               <Button
                 variant="primary"
                 type="submit"
-                className="gap-1.5 rounded-xl text-xs px-4 bg-black text-white hover:bg-neutral-800 cursor-pointer shrink-0"
+                className="gap-1.5 rounded-xl text-xs px-4 bg-black text-white hover:bg-neutral-800 cursor-pointer shrink-0 font-semibold"
               >
                 <Check className="w-4 h-4" />
                 <span>Mark Present</span>
               </Button>
             </form>
+
+            {/* 1-Click Fast Simulated Scanner */}
+            <div className="p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                Instant Test Scanners (1-Click Pass Simulation)
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {participants.slice(0, 6).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleScanOrCode(p.short_fallback_code)}
+                    className={`text-xs border rounded-xl px-2.5 py-1.5 font-semibold cursor-pointer transition-all flex items-center gap-1.5 ${
+                      p.status === 'boarded'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-white border-neutral-200 hover:border-black text-black'
+                    }`}
+                  >
+                    <QrCode className="w-3 h-3 text-neutral-500" />
+                    <span>{p.name} ({p.short_fallback_code})</span>
+                    {p.status === 'boarded' && <Check className="w-3 h-3 text-emerald-600" />}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Check-in Confirmation Card */}
             {scanResult && (
@@ -1020,6 +1195,129 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
             </motion.div>
           </div>
         )}
+
+        {/* Schedule & Timer Configuration Modal */}
+        {showScheduleModal && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-black/10 shadow-apple-card max-w-lg w-full p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-black flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-black" />
+                    <span>Arena Timer & Kickoff Schedule</span>
+                  </h3>
+                  <p className="text-xs text-neutral-500">{arena.title}</p>
+                </div>
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="text-xs text-neutral-400 hover:text-black font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSchedule} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1">
+                    Event Operational Status
+                  </label>
+                  <select
+                    value={scheduleStatus}
+                    onChange={(e) => setScheduleStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-semibold cursor-pointer"
+                  >
+                    <option value="ongoing">🔥 Live Now (Ongoing)</option>
+                    <option value="scheduled">⏳ Scheduled (Pre-Kickoff)</option>
+                    <option value="concluded">🏁 Concluded</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                      Event Kickoff Date & Time
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleStartsAt(new Date().toISOString().slice(0, 16))}
+                      className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                    >
+                      Set to Right Now
+                    </button>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleStartsAt}
+                    onChange={(e) => setScheduleStartsAt(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                      Submission Deadline Date & Time
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = scheduleStartsAt ? new Date(scheduleStartsAt) : new Date();
+                          const d = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+                          setScheduleDeadline(d.toISOString().slice(0, 16));
+                        }}
+                        className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        +24 Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = scheduleStartsAt ? new Date(scheduleStartsAt) : new Date();
+                          const d = new Date(base.getTime() + 48 * 60 * 60 * 1000);
+                          setScheduleDeadline(d.toISOString().slice(0, 16));
+                        }}
+                        className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        +48 Hours
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleDeadline}
+                    onChange={(e) => setScheduleDeadline(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/[0.06]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowScheduleModal(false)}
+                    className="rounded-xl text-xs py-2 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={savingSchedule}
+                    className="rounded-xl text-xs py-2 px-5 bg-black text-white hover:bg-neutral-800 cursor-pointer font-semibold shadow-sm"
+                  >
+                    {savingSchedule ? 'Saving...' : 'Update Schedule & Timer'}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* Modal B: Blacklist / Disqualify */}
@@ -1071,6 +1369,129 @@ export const ArenaCommandCenter: React.FC<ArenaCommandCenterProps> = ({ arena: p
                   {blacklistModalSquad.is_blacklisted ? 'Confirm Reinstatement' : 'Confirm Disqualification'}
                 </Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Schedule & Timer Configuration Modal */}
+        {showScheduleModal && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-black/10 shadow-apple-card max-w-lg w-full p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-black flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-black" />
+                    <span>Arena Timer & Kickoff Schedule</span>
+                  </h3>
+                  <p className="text-xs text-neutral-500">{arena.title}</p>
+                </div>
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="text-xs text-neutral-400 hover:text-black font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSchedule} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1">
+                    Event Operational Status
+                  </label>
+                  <select
+                    value={scheduleStatus}
+                    onChange={(e) => setScheduleStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-semibold cursor-pointer"
+                  >
+                    <option value="ongoing">🔥 Live Now (Ongoing)</option>
+                    <option value="scheduled">⏳ Scheduled (Pre-Kickoff)</option>
+                    <option value="concluded">🏁 Concluded</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                      Event Kickoff Date & Time
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleStartsAt(new Date().toISOString().slice(0, 16))}
+                      className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                    >
+                      Set to Right Now
+                    </button>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleStartsAt}
+                    onChange={(e) => setScheduleStartsAt(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                      Submission Deadline Date & Time
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = scheduleStartsAt ? new Date(scheduleStartsAt) : new Date();
+                          const d = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+                          setScheduleDeadline(d.toISOString().slice(0, 16));
+                        }}
+                        className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        +24 Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = scheduleStartsAt ? new Date(scheduleStartsAt) : new Date();
+                          const d = new Date(base.getTime() + 48 * 60 * 60 * 1000);
+                          setScheduleDeadline(d.toISOString().slice(0, 16));
+                        }}
+                        className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        +48 Hours
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleDeadline}
+                    onChange={(e) => setScheduleDeadline(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/[0.06]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowScheduleModal(false)}
+                    className="rounded-xl text-xs py-2 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={savingSchedule}
+                    className="rounded-xl text-xs py-2 px-5 bg-black text-white hover:bg-neutral-800 cursor-pointer font-semibold shadow-sm"
+                  >
+                    {savingSchedule ? 'Saving...' : 'Update Schedule & Timer'}
+                  </Button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

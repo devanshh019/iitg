@@ -32,9 +32,14 @@ export const ORGANIZER_NAVIGATION = [
   'org-audit'
 ];
 
+export const JUDGE_NAVIGATION = [
+  'judge-portal',
+  'announcements'
+];
+
 export const ROLE_NAVIGATION: Record<string, string[]> = {
   participant: HACKER_NAVIGATION,
-  judge: ['org-command', 'announcements'],
+  judge: JUDGE_NAVIGATION,
   volunteer: ['org-command', 'announcements'],
   organizer: ORGANIZER_NAVIGATION,
   super_admin: ORGANIZER_NAVIGATION
@@ -42,7 +47,7 @@ export const ROLE_NAVIGATION: Record<string, string[]> = {
 
 export const ROLE_DEFAULT_VIEWS: Record<string, string> = {
   participant: 'hackathons',
-  judge: 'org-command',
+  judge: 'judge-portal',
   volunteer: 'org-command',
   organizer: 'org-overview',
   super_admin: 'org-overview'

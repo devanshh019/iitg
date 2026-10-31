@@ -117,3 +117,37 @@ def grant_deadline_extension(
         "new_deadline": team.extension_deadline,
         "reason": team.extension_reason
     }
+
+
+@router.get("/team/{team_id}")
+def get_team_submission(
+    event_id: str,
+    team_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve submission details for a specific squad (for judges and organizers)."""
+    sub = db.execute(select(Submission).filter_by(event_id=event_id, team_id=team_id)).scalars().first()
+    if not sub:
+        return None
+
+    latest_rev = db.execute(
+        select(SubmissionRevision).filter_by(submission_id=sub.id).order_by(SubmissionRevision.revision_number.desc())
+    ).scalars().first()
+
+    return {
+        "submission_id": sub.id,
+        "team_id": sub.team_id,
+        "final_receipt_id": sub.final_receipt_id,
+        "is_late": sub.is_late,
+        "latest_revision": {
+            "revision_number": latest_rev.revision_number,
+            "repo_url": latest_rev.repo_url,
+            "demo_url": latest_rev.demo_url,
+            "video_url": latest_rev.video_url,
+            "deck_url": latest_rev.deck_url,
+            "description": latest_rev.description,
+            "content_hash": latest_rev.content_hash,
+            "server_at": latest_rev.server_at
+        } if latest_rev else None
+    }

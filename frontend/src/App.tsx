@@ -16,6 +16,7 @@ import { OrganizationPortalView } from './views/OrganizationPortalView';
 import { ArenaCommandCenter } from './views/ArenaCommandCenter';
 import { OrganizerProblemsView } from './views/OrganizerProblemsView';
 import { OrganizerAuditView } from './views/OrganizerAuditView';
+import { JudgePortalView } from './views/JudgePortalView';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
@@ -105,6 +106,9 @@ const AppContent: React.FC = () => {
             {currentView === 'launch' && <LaunchDeskView onNavigate={handleNavigate} />}
             {currentView === 'announcements' && <AnnouncementsView />}
             {currentView === 'passport' && <PassportView />}
+
+            {/* Judge Views */}
+            {currentView === 'judge-portal' && <JudgePortalView />}
 
             {/* Organizer Views (Strictly dedicated organizer suite) */}
             {(currentView === 'org-overview' || currentView === 'org-portal') && (

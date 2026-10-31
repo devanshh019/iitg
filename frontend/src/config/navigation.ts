@@ -105,10 +105,29 @@ export const ORGANIZER_NAV_ITEMS: Record<string, NavItem> = {
   }
 };
 
+// JUDGE NAVIGATION ITEMS ONLY
+export const JUDGE_NAV_ITEMS: Record<string, NavItem> = {
+  'judge-portal': {
+    id: 'judge-portal',
+    label: 'Evaluation Desk',
+    mobileLabel: 'Judging',
+    description: 'Inspect assigned squad submissions, grade rubrics & deliberations',
+    icon: Sparkles
+  },
+  'announcements': {
+    id: 'announcements',
+    label: 'Announcements',
+    mobileLabel: 'Updates',
+    description: 'Real-time hackathon notification center',
+    icon: Bell
+  }
+};
+
 // Combined dictionary for lookup
 export const ALL_NAV_ITEMS: Record<string, NavItem> = {
   ...HACKER_NAV_ITEMS,
   ...ORGANIZER_NAV_ITEMS,
+  ...JUDGE_NAV_ITEMS,
   // Legacy alias
   'org-portal': ORGANIZER_NAV_ITEMS['org-overview']
 };

@@ -62,6 +62,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {userRole === 'super_admin' ? 'Root' : 'Host'}
                   </span>
                 )}
+                {userRole === 'judge' && (
+                  <span className="text-[9px] font-bold bg-neutral-900 text-amber-300 px-1.5 py-0.5 rounded leading-none uppercase tracking-wider border border-amber-400/30">
+                    Jury
+                  </span>
+                )}
               </div>
               <span className="text-[10px] font-sans font-semibold text-neutral-400 block tracking-wider uppercase mt-0.5">
                 {getRoleDisplayName(userRole)}

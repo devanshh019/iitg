@@ -210,6 +210,73 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
     }
   };
 
+  const [scheduleModalEvent, setScheduleModalEvent] = useState<any | null>(null);
+  const [scheduleStartsAt, setScheduleStartsAt] = useState('');
+  const [scheduleDeadline, setScheduleDeadline] = useState('');
+  const [scheduleStatus, setScheduleStatus] = useState('ongoing');
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const handleMakeLive = async (event: any) => {
+    if (!selectedOrg) return;
+    try {
+      const nowIso = new Date().toISOString();
+      await apiFetch<any>(`/organizations/${selectedOrg.id}/events/${event.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'ongoing',
+          starts_at: nowIso
+        })
+      });
+      setActionMsg(`Arena "${event.title}" is now officially LIVE! Kickoff timer started.`);
+      await loadOrgDetail(selectedOrg.id);
+      await refreshEvents();
+      setTimeout(() => setActionMsg(null), 3500);
+    } catch (err: any) {
+      alert(err.message || 'Failed to make arena live');
+    }
+  };
+
+  const handleOpenScheduleModal = (event: any) => {
+    setScheduleModalEvent(event);
+    setScheduleStatus(event.status || 'ongoing');
+    if (event.starts_at) {
+      setScheduleStartsAt(new Date(event.starts_at).toISOString().slice(0, 16));
+    } else {
+      setScheduleStartsAt(new Date().toISOString().slice(0, 16));
+    }
+    if (event.submission_deadline) {
+      setScheduleDeadline(new Date(event.submission_deadline).toISOString().slice(0, 16));
+    } else {
+      const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      setScheduleDeadline(d.toISOString().slice(0, 16));
+    }
+  };
+
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrg || !scheduleModalEvent) return;
+    try {
+      setSavingSchedule(true);
+      await apiFetch<any>(`/organizations/${selectedOrg.id}/events/${scheduleModalEvent.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: scheduleStatus,
+          starts_at: scheduleStartsAt ? new Date(scheduleStartsAt).toISOString() : undefined,
+          submission_deadline: scheduleDeadline ? new Date(scheduleDeadline).toISOString() : undefined
+        })
+      });
+      setActionMsg(`Timer and schedule updated for "${scheduleModalEvent.title}"!`);
+      setScheduleModalEvent(null);
+      await loadOrgDetail(selectedOrg.id);
+      await refreshEvents();
+      setTimeout(() => setActionMsg(null), 3500);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update schedule');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
   const handleUnsealAllPS = async (event: any) => {
     if (!selectedOrg) return;
     try {
@@ -392,7 +459,29 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
                         <h4 className="text-base font-bold text-black">{ev.title}</h4>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {ev.status !== 'ongoing' && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleMakeLive(ev)}
+                            className="gap-1.5 rounded-xl text-xs py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                          >
+                            <Rocket className="w-3.5 h-3.5" />
+                            <span>Kickoff Live Now</span>
+                          </Button>
+                        )}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenScheduleModal(ev)}
+                          className="gap-1.5 rounded-xl text-xs py-1.5 cursor-pointer"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Timer & Schedule</span>
+                        </Button>
+
                         <Button
                           variant="outline"
                           size="sm"
@@ -749,6 +838,129 @@ export const OrganizationPortalView: React.FC<OrganizationPortalViewProps> = ({ 
                     className="rounded-xl text-xs py-2 px-5 bg-black text-white hover:bg-neutral-800 cursor-pointer"
                   >
                     {submittingArena ? 'Publishing...' : 'Publish Hackathon Arena'}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Schedule & Timer Configuration Modal */}
+        {scheduleModalEvent && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-black/10 shadow-apple-card max-w-lg w-full p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-black flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-black" />
+                    <span>Configure Arena Timer & Schedule</span>
+                  </h3>
+                  <p className="text-xs text-neutral-500">{scheduleModalEvent.title}</p>
+                </div>
+                <button
+                  onClick={() => setScheduleModalEvent(null)}
+                  className="text-xs text-neutral-400 hover:text-black font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSchedule} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1">
+                    Event Operational Status
+                  </label>
+                  <select
+                    value={scheduleStatus}
+                    onChange={(e) => setScheduleStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-semibold cursor-pointer"
+                  >
+                    <option value="ongoing">🔥 Live Now (Ongoing)</option>
+                    <option value="scheduled">⏳ Scheduled (Pre-Kickoff)</option>
+                    <option value="concluded">🏁 Concluded</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                      Event Kickoff Date & Time
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleStartsAt(new Date().toISOString().slice(0, 16))}
+                      className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                    >
+                      Set to Right Now
+                    </button>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleStartsAt}
+                    onChange={(e) => setScheduleStartsAt(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                      Submission Deadline Date & Time
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = scheduleStartsAt ? new Date(scheduleStartsAt) : new Date();
+                          const d = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+                          setScheduleDeadline(d.toISOString().slice(0, 16));
+                        }}
+                        className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        +24 Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = scheduleStartsAt ? new Date(scheduleStartsAt) : new Date();
+                          const d = new Date(base.getTime() + 48 * 60 * 60 * 1000);
+                          setScheduleDeadline(d.toISOString().slice(0, 16));
+                        }}
+                        className="text-[10px] text-neutral-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        +48 Hours
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleDeadline}
+                    onChange={(e) => setScheduleDeadline(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/[0.06]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setScheduleModalEvent(null)}
+                    className="rounded-xl text-xs py-2 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={savingSchedule}
+                    className="rounded-xl text-xs py-2 px-5 bg-black text-white hover:bg-neutral-800 cursor-pointer font-semibold shadow-sm"
+                  >
+                    {savingSchedule ? 'Saving...' : 'Update Schedule & Timer'}
                   </Button>
                 </div>
               </form>

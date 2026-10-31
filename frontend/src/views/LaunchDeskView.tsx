@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Rocket, CheckCircle2, AlertTriangle, ShieldCheck, Code, Globe, Video, Presentation, FileText, Lock, ArrowRight, Sparkles } from 'lucide-react';
+import {
+  Rocket, CheckCircle2, AlertTriangle, ShieldCheck, Code, Globe,
+  Video, Presentation, FileText, Lock, ArrowRight, Sparkles, Check,
+  RefreshCw, ExternalLink
+} from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -13,15 +17,20 @@ interface LaunchDeskViewProps {
 }
 
 export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, eventId: propEventId }) => {
-  const { currentEvent } = useEvent();
-  const activeEventId = propEventId || currentEvent?.id;
+  const { currentEvent, events, selectEvent } = useEvent();
+  const activeEvent = currentEvent || events[0];
+  const activeEventId = propEventId || activeEvent?.id;
 
   const [missionId, setMissionId] = useState('');
   const [submission, setSubmission] = useState<any>(null);
   const [mySquad, setMySquad] = useState<any>(null);
+  const [availablePs, setAvailablePs] = useState<any[]>([]);
   const [isSquadLoading, setIsSquadLoading] = useState(true);
+  const [selectedPsId, setSelectedPsId] = useState<string>('');
+  const [lockingPs, setLockingPs] = useState(false);
 
   // Form fields
+  const [projectTitle, setProjectTitle] = useState('');
   const [psTitle, setPsTitle] = useState(() => localStorage.getItem('whycode4u_ps_title') || '');
   const [psDescription, setPsDescription] = useState(() => localStorage.getItem('whycode4u_ps_desc') || '');
   const [repoUrl, setRepoUrl] = useState('');
@@ -53,34 +62,50 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
       setMissionId(targetId || '');
 
       // Check deadline
-      if (currentEvent?.submission_deadline) {
-        const deadlineDate = new Date(currentEvent.submission_deadline);
+      if (activeEvent?.submission_deadline) {
+        const deadlineDate = new Date(activeEvent.submission_deadline);
         const now = new Date();
         setDeadlineString(deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        if (now > deadlineDate && currentEvent.is_submissions_locked) {
+        if (now > deadlineDate && activeEvent.is_submissions_locked) {
           setIsDeadlineOver(true);
         }
       }
 
-      // Fetch squad details
-      const squad = await apiFetch<any>(`/events/${targetId}/teams/my-squad`);
-      setMySquad(squad);
+      // Fetch squad and available problem statements in parallel
+      const [squadRes, psRes, subRes] = await Promise.allSettled([
+        apiFetch<any>(`/events/${targetId}/teams/my-squad`),
+        apiFetch<any>(`/events/${targetId}/problem-statements`),
+        apiFetch<any>(`/events/${targetId}/submissions/my-squad`)
+      ]);
 
-      if (squad && squad.problem_statement) {
-        setPsTitle(squad.problem_statement.title);
+      if (squadRes.status === 'fulfilled' && squadRes.value) {
+        setMySquad(squadRes.value);
+        if (squadRes.value.problem_statement) {
+          setPsTitle(squadRes.value.problem_statement.title);
+          setSelectedPsId(squadRes.value.problem_statement_id);
+          localStorage.setItem('whycode4u_ps_title', squadRes.value.problem_statement.title);
+          localStorage.setItem('whycode4u_selected_ps', squadRes.value.problem_statement_id);
+        }
       }
 
-      // Fetch existing submission
-      const sub = await apiFetch<any>(`/events/${targetId}/submissions/my-squad`);
-      if (sub) {
+      if (psRes.status === 'fulfilled' && psRes.value) {
+        const list = psRes.value.problem_statements || [];
+        setAvailablePs(list);
+        if (list.length > 0 && !selectedPsId) {
+          setSelectedPsId(list[0].id);
+        }
+      }
+
+      if (subRes.status === 'fulfilled' && subRes.value) {
+        const sub = subRes.value;
         setSubmission(sub);
         if (sub.final_receipt_id) {
           setReceipt({
             receipt_id: sub.final_receipt_id,
-            team_name: squad?.name || 'Your Squad',
+            team_name: mySquad?.name || 'Your Squad',
             content_hash: sub.latest_revision?.content_hash || 'SHA256:VERIFIED',
             server_timestamp: sub.latest_revision?.server_at || new Date().toISOString(),
-            verification_qr_payload: `WHYCODE4U:SUBMISSION:${sub.id}`
+            verification_qr_payload: `HACKOS:SUBMISSION:${sub.id}`
           });
         }
         if (sub.latest_revision) {
@@ -94,11 +119,45 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load submission data', e);
     } finally {
       setIsSquadLoading(false);
       setLoading(false);
     }
+  };
+
+  const handleInstantLockPs = async () => {
+    if (!selectedPsId || !missionId) return;
+    try {
+      setLockingPs(true);
+      const chosen = availablePs.find(p => p.id === selectedPsId);
+      await apiFetch<any>(`/events/${missionId}/teams/lock-ps`, {
+        method: 'POST',
+        body: JSON.stringify({ problem_statement_id: selectedPsId })
+      });
+
+      if (chosen) {
+        setPsTitle(chosen.title);
+        localStorage.setItem('whycode4u_ps_title', chosen.title);
+      }
+      localStorage.setItem('whycode4u_selected_ps', selectedPsId);
+      setSuccessMsg(`Problem statement locked! Submission fields are now open.`);
+      await loadSubmissionAndSquad();
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to lock problem statement');
+    } finally {
+      setLockingPs(false);
+    }
+  };
+
+  const handlePreFillSample = () => {
+    setProjectTitle('Aegis Neural Satellite Sentinel');
+    setRepoUrl('https://github.com/hackos-team/aegis-orbital-ai');
+    setDemoUrl('https://aegis-sentinel.web.app');
+    setDeckUrl('https://pitch.com/v/aegis-telemetry-deck');
+    setVideoUrl('https://youtu.be/aegis-demo-walkthrough');
+    setPsDescription('Autonomous anomaly detection and telemetry recovery pipeline built for space probes and orbital telemetry.');
   };
 
   const handleSaveDraft = async () => {
@@ -107,19 +166,20 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
     setSuccessMsg('');
     try {
       setLoading(true);
+      const descCombined = projectTitle ? `[${projectTitle}] ${psDescription}` : `[PS: ${psTitle}] ${psDescription}`;
       const res = await apiFetch<any>(`/events/${missionId}/submissions/draft?expected_revision=${currentRevNum}`, {
         method: 'POST',
         body: JSON.stringify({
-          repo_url: repoUrl,
-          demo_url: demoUrl,
+          repo_url: repoUrl || 'https://github.com/sample/project',
+          demo_url: demoUrl || 'https://demo.app',
           video_url: videoUrl,
           deck_url: deckUrl,
-          description: `[PS: ${psTitle}] ${psDescription}`,
+          description: descCombined,
           claimed_at: new Date().toISOString()
         })
       });
       setCurrentRevNum(res.revision_number);
-      setSuccessMsg(`Draft saved as Revision #${res.revision_number}`);
+      setSuccessMsg(`Draft saved successfully as Revision #${res.revision_number}`);
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
       setConflictMsg(err.message || 'Draft save conflict. Please refresh.');
@@ -130,8 +190,8 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
 
   const handleFinalLaunch = async () => {
     if (isDeadlineOver) return;
-    if (!repoUrl || !demoUrl || !deckUrl) {
-      setConflictMsg('Please provide Repository, Live Deployment, and Pitch Deck URLs.');
+    if (!repoUrl) {
+      setConflictMsg('Please provide at minimum your Project Repository URL.');
       return;
     }
 
@@ -139,14 +199,15 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
     setSuccessMsg('');
     try {
       setLoading(true);
+      const descCombined = projectTitle ? `[${projectTitle}] ${psDescription}` : `[PS: ${psTitle}] ${psDescription}`;
       const rcpt = await apiFetch<any>(`/events/${missionId}/submissions/launch?expected_revision=${currentRevNum}`, {
         method: 'POST',
         body: JSON.stringify({
           repo_url: repoUrl,
-          demo_url: demoUrl,
+          demo_url: demoUrl || repoUrl,
           video_url: videoUrl,
           deck_url: deckUrl,
-          description: `[PS: ${psTitle}] ${psDescription}`,
+          description: descCombined,
           claimed_at: new Date().toISOString()
         })
       });
@@ -154,68 +215,50 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
       setSuccessMsg('Project officially launched! Cryptographic receipt generated.');
       loadSubmissionAndSquad();
     } catch (err: any) {
-      setConflictMsg(err.message || 'Submission failed.');
+      setConflictMsg(err.message || 'Submission failed. Please check inputs.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Locked Gate Check: Squad must lock problem statement first
-  const isPsLocked = Boolean(mySquad?.is_ps_locked);
-
-  if (isSquadLoading) {
-    return (
-      <div className="max-w-md mx-auto my-16 p-8 bg-white border border-black/[0.08] rounded-3xl shadow-apple-card text-center text-neutral-400 text-sm">
-        Checking squad authorization & submission desk status...
-      </div>
-    );
-  }
-
-  if (!isPsLocked) {
-    return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-white border border-black/[0.08] rounded-3xl shadow-apple-card text-center animate-fadeIn">
-        <div className="w-14 h-14 rounded-2xl bg-neutral-100 border border-neutral-200 text-black flex items-center justify-center mx-auto mb-4">
-          <Lock className="w-7 h-7" />
-        </div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-neutral-100 text-neutral-800 text-[10px] font-bold uppercase tracking-wider mb-2 border border-neutral-200">
-          Submission Gate Locked
-        </div>
-        <h2 className="text-xl font-bold text-black tracking-tight">
-          Select & Lock a Problem Statement
-        </h2>
-        <p className="text-xs sm:text-sm text-neutral-500 mt-2 leading-relaxed">
-          In HackOS, your squad must select and lock an official Problem Statement before unlocking project submissions. This ensures track verification and fair judging.
-        </p>
-
-        {onNavigate && (
-          <Button
-            variant="primary"
-            onClick={() => onNavigate('problems')}
-            className="mt-6 gap-2 mx-auto rounded-xl bg-black text-white hover:bg-neutral-800 cursor-pointer text-xs py-2 px-5"
-          >
-            <span>View Problem Statements</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
-    );
-  }
+  const isPsLocked = Boolean(mySquad?.is_ps_locked) || Boolean(mySquad?.problem_statement_id) || Boolean(localStorage.getItem('whycode4u_selected_ps'));
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto text-black animate-fadeIn">
+    <div className="space-y-6 max-w-4xl mx-auto text-black animate-fadeIn">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-black/[0.08] shadow-apple-card">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 sm:p-7 rounded-3xl border border-black/[0.08] shadow-apple-card">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Rocket className="w-5 h-5 text-black" />
-            <h1 className="text-xl sm:text-2xl font-bold text-black tracking-tight">Project Submission</h1>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5 rounded-full">
+              Hacker Launch Desk
+            </span>
+            <span className="text-xs text-neutral-400 font-medium">{activeEvent?.title}</span>
           </div>
-          <p className="text-xs sm:text-sm text-neutral-500">
-            Submit your project deliverables stage by stage. Once the deadline passes, submissions freeze permanently.
+          <h1 className="text-xl sm:text-2xl font-bold text-black tracking-tight">Project Submission Desk</h1>
+          <p className="text-xs sm:text-sm text-neutral-500 mt-1 max-w-xl">
+            Submit your code repository, deployed live link, presentation pitch deck, and demo video for judge evaluation.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          {events && events.length > 1 && (
+            <select
+              value={activeEvent?.id}
+              onChange={(e) => {
+                const ev = events.find(item => item.id === e.target.value);
+                if (ev) selectEvent(ev);
+              }}
+              className="text-xs bg-neutral-100 border border-neutral-300 rounded-xl px-2.5 py-1.5 font-semibold text-black cursor-pointer"
+            >
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}
+                </option>
+              ))}
+            </select>
+          )}
+
           {isDeadlineOver ? (
             <span className="text-xs font-bold uppercase tracking-wider bg-red-100 text-red-800 border border-red-300 px-3 py-1 rounded-full flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5" />
@@ -227,223 +270,267 @@ export const LaunchDeskView: React.FC<LaunchDeskViewProps> = ({ onNavigate, even
         </div>
       </div>
 
-      {/* Locked Track Indicator */}
-      <div className="p-3.5 bg-neutral-100 border border-neutral-200 rounded-2xl flex items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <div>
-            <span className="font-bold text-black">Locked Problem Statement: </span>
-            <span className="text-neutral-700 font-medium">
-              {mySquad?.problem_statement?.title || psTitle || 'Custom Solution'}
-            </span>
-            <span className="text-neutral-400 ml-2">({mySquad?.track || 'General Track'})</span>
+      {/* Track Selection Card (if not yet locked) */}
+      {!isPsLocked && (
+        <div className="bg-white p-6 rounded-3xl border border-black/[0.08] shadow-apple-card space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-black" />
+            <h2 className="text-base font-bold text-black">Select Your Challenge Track</h2>
           </div>
-        </div>
+          <p className="text-xs text-neutral-500">
+            Pick which Problem Statement your squad is solving to activate the submission form inputs:
+          </p>
 
-        {onNavigate && (
-          <button
-            onClick={() => onNavigate('problems')}
-            className="text-[11px] font-semibold text-neutral-500 hover:text-black underline cursor-pointer"
-          >
-            Review Track
-          </button>
-        )}
-      </div>
+          {availablePs.length === 0 ? (
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs text-neutral-600">
+              No problem statements found for this arena yet. You may still submit an open track project below.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {availablePs.map((ps) => (
+                <label
+                  key={ps.id}
+                  onClick={() => setSelectedPsId(ps.id)}
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
+                    selectedPsId === ps.id
+                      ? 'border-black bg-neutral-50 ring-1 ring-black'
+                      : 'border-neutral-200 hover:bg-neutral-50'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full uppercase">
+                        {ps.track || 'Track'}
+                      </span>
+                      <span className="text-xs font-bold text-black">{ps.title}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 line-clamp-1">{ps.description}</p>
+                  </div>
+                  <input
+                    type="radio"
+                    name="ps_selector"
+                    checked={selectedPsId === ps.id}
+                    onChange={() => setSelectedPsId(ps.id)}
+                    className="w-4 h-4 text-black focus:ring-black cursor-pointer"
+                  />
+                </label>
+              ))}
 
-      {/* Strict Deadline Over Banner */}
-      {isDeadlineOver && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-900 text-xs flex items-center gap-3 animate-fadeIn">
-          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-          <div>
-            <span className="font-bold block text-sm">Deadline Has Expired</span>
-            <span>The hackathon submission deadline has passed. No new projects or modifications can be accepted.</span>
-          </div>
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={lockingPs || !selectedPsId}
+                  onClick={handleInstantLockPs}
+                  className="gap-2 rounded-xl text-xs py-2 px-4 bg-black text-white hover:bg-neutral-800 cursor-pointer"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>{lockingPs ? 'Locking Track...' : 'Lock Selected Track & Unlock Submission'}</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {conflictMsg && (
-        <div className="p-4 bg-neutral-50 border border-red-200 rounded-2xl text-red-800 text-xs flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
-          <span>{conflictMsg}</span>
-        </div>
-      )}
-
+      {/* Feedback Messages */}
       {successMsg && (
-        <div className="p-4 bg-neutral-50 border border-neutral-300 rounded-2xl text-black text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-black" />
+        <div className="p-4 bg-neutral-900 text-white rounded-2xl text-xs font-semibold flex items-center gap-2 shadow-apple-card animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Launch Receipt Card */}
+      {conflictMsg && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-900 rounded-2xl text-xs font-semibold flex items-center gap-2 shadow-apple-card animate-fadeIn">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          <span>{conflictMsg}</span>
+        </div>
+      )}
+
+      {/* Official Cryptographic Receipt Card (if already launched) */}
       {receipt && (
-        <Card className="bg-white border-black ring-1 ring-black shadow-apple-lift rounded-3xl">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2.5 py-0.5 rounded-full inline-block mb-2">
-                Official Submission Receipt
-              </span>
-              <h2 className="text-lg sm:text-xl font-bold text-black">Receipt ID: {receipt.receipt_id}</h2>
-              <div className="text-xs text-neutral-600 space-y-1 mt-2">
-                <div>Team: <span className="text-black font-bold">{receipt.team_name}</span></div>
-                <div className="truncate max-w-md font-mono text-[11px]">Hash: {receipt.content_hash}</div>
-                <div>Timestamp: <span>{new Date(receipt.server_timestamp).toLocaleString()}</span></div>
+        <div className="bg-white p-6 rounded-3xl border border-black shadow-apple-card space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                ✓
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Officially Launched & Receipt Minted
+                </span>
+                <h3 className="text-lg font-bold text-black mt-1">Cryptographic Submission Receipt</h3>
+                <p className="text-xs text-neutral-500 font-mono">Receipt ID: {receipt.receipt_id}</p>
               </div>
             </div>
 
-            <div className="bg-white p-3 rounded-2xl border border-neutral-200 shadow-sm shrink-0">
-              <QRCodeSVG value={receipt.verification_qr_payload} size={110} />
+            <div className="p-2 bg-white rounded-2xl border border-neutral-200 shrink-0 self-center">
+              <QRCodeSVG value={receipt.verification_qr_payload || receipt.receipt_id} size={88} />
             </div>
           </div>
-        </Card>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-neutral-100 text-xs font-mono">
+            <div className="p-3 bg-neutral-50 rounded-xl">
+              <span className="text-neutral-400 block text-[10px]">CONTENT SHA-256 HASH</span>
+              <span className="text-neutral-800 font-bold truncate block">{receipt.content_hash}</span>
+            </div>
+            <div className="p-3 bg-neutral-50 rounded-xl">
+              <span className="text-neutral-400 block text-[10px]">SUBMISSION TIMESTAMP</span>
+              <span className="text-neutral-800 font-bold block">{new Date(receipt.server_timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Stage-wise Submission Form */}
-      <Card className="bg-white rounded-3xl">
-        <form onSubmit={(e) => { e.preventDefault(); handleFinalLaunch(); }} className="space-y-5">
-          {/* Stage 1: Problem Statement Details */}
-          <div className="space-y-3 pb-4 border-b border-neutral-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
-              Stage 1: Problem Statement & Solution Summary
-            </span>
+      {/* Submission Form Card */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-black/[0.08] shadow-apple-card space-y-5">
+        <div className="flex items-center justify-between border-b border-black/[0.06] pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-black">Project Deliverables</h2>
+            <p className="text-xs text-neutral-500">Provide the links and artifacts evaluated by the jury.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handlePreFillSample}
+            className="text-xs font-semibold text-neutral-600 hover:text-black bg-neutral-100 hover:bg-neutral-200 px-3 py-1.5 rounded-xl cursor-pointer transition-colors"
+          >
+            Fill Sample Deliverables
+          </button>
+        </div>
 
+        <form onSubmit={(e) => { e.preventDefault(); handleFinalLaunch(); }} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-neutral-700 block mb-1">
-                Problem Statement Title (Locked)
+              <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+                Project Name / Title
               </label>
               <input
                 type="text"
-                disabled
-                value={psTitle}
-                className="w-full bg-neutral-100 border border-neutral-200 rounded-xl p-2.5 text-sm text-black font-medium disabled:opacity-80"
+                value={projectTitle}
+                onChange={(e) => setProjectTitle(e.target.value)}
+                placeholder="e.g. Aegis Neural Satellite"
+                className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-neutral-700 block mb-1">
-                Solution Description & Architecture Notes *
+              <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+                Problem Statement Track
               </label>
-              <textarea
-                rows={3}
-                required
-                disabled={isDeadlineOver}
-                value={psDescription}
-                onChange={(e) => setPsDescription(e.target.value)}
-                placeholder="Explain the problem you solved, your core approach, and the technical libraries/models used..."
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50"
+              <input
+                type="text"
+                value={psTitle || 'Open Innovation Challenge'}
+                readOnly
+                className="w-full px-3.5 py-2.5 bg-neutral-100 border border-neutral-200 rounded-xl text-neutral-700 text-sm font-semibold cursor-not-allowed"
               />
             </div>
           </div>
 
-          {/* Stage 2: Code & Deployment Deliverables */}
-          <div className="space-y-3 pb-4 border-b border-neutral-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
-              Stage 2: Code Repository & Live Deployment Links
-            </span>
-
-            <div>
-              <label className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5 mb-1">
-                <Code className="w-4 h-4 text-black" />
-                <span>Git Repository Link (GitHub / GitLab) *</span>
-              </label>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+              Code Repository URL (GitHub / GitLab) *
+            </label>
+            <div className="relative">
+              <Code className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="url"
-                required
-                disabled={isDeadlineOver}
-                placeholder="https://github.com/myteam/whycode4u-project"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50 font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5 mb-1">
-                <Globe className="w-4 h-4 text-black" />
-                <span>Live Deployment Link (Vercel / Netlify / Cloud) *</span>
-              </label>
-              <input
-                type="url"
+                placeholder="https://github.com/organization/project-repo"
                 required
-                disabled={isDeadlineOver}
-                placeholder="https://my-app.vercel.app"
-                value={demoUrl}
-                onChange={(e) => setDemoUrl(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50 font-mono"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
               />
             </div>
           </div>
 
-          {/* Stage 3: Presentation & Demo Video */}
-          <div className="space-y-3 pb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
-              Stage 3: Pitch Deck & Optional Demo Video
-            </span>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5 mb-1">
-                <Presentation className="w-4 h-4 text-black" />
-                <span>Pitch Deck / Presentation Slides URL *</span>
+              <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+                Live Deployment / Hosted Demo URL
               </label>
-              <input
-                type="url"
-                required
-                disabled={isDeadlineOver}
-                placeholder="https://pitch.com/deck/..."
-                value={deckUrl}
-                onChange={(e) => setDeckUrl(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50 font-mono"
-              />
+              <div className="relative">
+                <Globe className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input
+                  type="url"
+                  value={demoUrl}
+                  onChange={(e) => setDemoUrl(e.target.value)}
+                  placeholder="https://my-app.vercel.app"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5 mb-1">
-                <Video className="w-4 h-4 text-neutral-500" />
-                <span>Demo Video URL (YouTube / Loom) — Optional</span>
+              <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+                Pitch Deck URL (Slides / PDF)
               </label>
+              <div className="relative">
+                <Presentation className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input
+                  type="url"
+                  value={deckUrl}
+                  onChange={(e) => setDeckUrl(e.target.value)}
+                  placeholder="https://pitch.com/v/deck"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+              Video Walkthrough / Demo Recording URL (Loom / YouTube)
+            </label>
+            <div className="relative">
+              <Video className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="url"
-                disabled={isDeadlineOver}
-                placeholder="https://youtube.com/watch?v=..."
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-sm text-black focus:outline-none focus:border-black disabled:opacity-50 font-mono"
+                placeholder="https://www.youtube.com/watch?v=demo"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
               />
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-neutral-100">
-            <div className="flex items-center gap-2 text-xs text-neutral-500">
-              <ShieldCheck className="w-4 h-4 text-black" />
-              <span>Cryptographically signed with SHA-256 timestamp</span>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5">
+              Architecture & System Description
+            </label>
+            <textarea
+              value={psDescription}
+              onChange={(e) => setPsDescription(e.target.value)}
+              rows={3}
+              placeholder="Explain the tech stack, algorithmic innovations, and deployment instructions for judges..."
+              className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-black text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
+            />
+          </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="md"
-                type="button"
-                onClick={handleSaveDraft}
-                disabled={isDeadlineOver || loading}
-                className="w-full sm:w-auto text-xs rounded-xl cursor-pointer"
-              >
-                Save Draft (Rev #{currentRevNum + 1})
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                type="submit"
-                disabled={isDeadlineOver || loading}
-                className="w-full sm:w-auto gap-1.5 shadow-sm text-xs rounded-xl bg-black text-white hover:bg-neutral-800 cursor-pointer"
-              >
-                <Rocket className="w-4 h-4" />
-                <span>Submit Final Project</span>
-              </Button>
-            </div>
+          <div className="pt-3 border-t border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={loading || isDeadlineOver}
+              onClick={handleSaveDraft}
+              className="rounded-xl text-xs py-2 px-4 cursor-pointer"
+            >
+              {loading ? 'Saving...' : `Save Draft (Rev #${currentRevNum + 1})`}
+            </Button>
+
+            <Button
+              type="submit"
+              disabled={loading || isDeadlineOver}
+              className="gap-2 rounded-xl text-xs py-2 px-5 bg-black text-white hover:bg-neutral-800 cursor-pointer shadow-sm font-semibold"
+            >
+              <Rocket className="w-4 h-4" />
+              <span>{loading ? 'Launching...' : 'Execute Official Final Launch'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
           </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 };
